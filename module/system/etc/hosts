@@ -1,0 +1,5 @@
+127.0.0.1 localhost
+::1 localhost
+# hosts 由 blocklist.txt + extra_hosts 在开机时生成，不要手改这个文件
+# 要改屏蔽域名：改 /data/adb/modules/FJ_HostsBlock/blocklist.txt
+# 或 WebUI 里直接加，或写 /data/adb/FJ_HostsBlock/extra_hosts

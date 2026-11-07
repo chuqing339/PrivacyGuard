@@ -1,0 +1,127 @@
+name: Build & Release PrivacyGuard
+
+on:
+  push:
+    branches:
+      - main
+      - master
+    tags:
+      - 'v*'
+  pull_request:
+    branches:
+      - main
+      - master
+  workflow_dispatch:
+    inputs:
+      build_type:
+        description: '构建模式 (debug / release / all)'
+        required: true
+        default: 'all'
+        type: choice
+        options:
+          - all
+          - release
+          - debug
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build Android App & Module
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+          cache: 'gradle'
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Prepare Gradle Environment
+        run: |
+          chmod +x gradlew
+          if [ ! -f gradle/wrapper/gradle-wrapper.jar ]; then
+            echo "Gradle wrapper jar missing, downloading official wrapper..."
+            mkdir -p gradle/wrapper
+            curl -fsSL https://raw.githubusercontent.com/gradle/gradle/v8.11.1/gradle/wrapper/gradle-wrapper.jar -o gradle/wrapper/gradle-wrapper.jar || \
+            curl -fsSL https://services.gradle.org/distributions/gradle-wrapper.jar -o gradle/wrapper/gradle-wrapper.jar
+          fi
+
+      - name: Build Debug APK
+        if: ${{ github.event.inputs.build_type == 'debug' || github.event.inputs.build_type == 'all' || github.event.inputs.build_type == '' }}
+        run: ./gradlew assembleDebug --stacktrace
+
+      - name: Build Release APK
+        if: ${{ github.event.inputs.build_type == 'release' || github.event.inputs.build_type == 'all' || github.event.inputs.build_type == '' }}
+        run: ./gradlew assembleRelease --stacktrace
+
+      - name: Prepare Output Artifacts
+        id: prepare_artifacts
+        run: |
+          mkdir -p artifacts
+          VERSION="v2.6.0"
+          if [[ "${{ github.ref }}" == refs/tags/v* ]]; then
+            VERSION="${GITHUB_REF#refs/tags/}"
+          fi
+          echo "BUILD_VERSION=$VERSION" >> $GITHUB_ENV
+
+          # 收集 APK
+          if [ -f app/build/outputs/apk/release/app-release.apk ]; then
+            cp app/build/outputs/apk/release/app-release.apk "artifacts/PrivacyGuard-${VERSION}-release.apk"
+          fi
+          if [ -f app/build/outputs/apk/debug/app-debug.apk ]; then
+            cp app/build/outputs/apk/debug/app-debug.apk "artifacts/PrivacyGuard-${VERSION}-debug.apk"
+          fi
+
+          # 打包配套 Magisk / KernelSU / APatch 模块
+          if [ -d module ]; then
+            cd module
+            zip -r "../artifacts/PrivacyGuard-Module-${VERSION}.zip" ./*
+            cd ..
+          fi
+
+          echo "Artifacts prepared:"
+          ls -la artifacts/
+
+      - name: Upload Artifacts to GitHub Actions
+        uses: actions/upload-artifact@v4
+        with:
+          name: PrivacyGuard-Build-Outputs
+          path: artifacts/*
+          retention-days: 30
+
+      - name: Create GitHub Release (On Tag Push)
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: artifacts/*
+          tag_name: ${{ github.ref_name }}
+          name: PrivacyGuard ${{ env.BUILD_VERSION }}
+          draft: false
+          prerelease: false
+          generate_release_notes: true
+          body: |
+            ### 🛡️ 隐私守卫 (PrivacyGuard) ${{ env.BUILD_VERSION }} 发布
+
+            专为小米手机 (HyperOS / MIUI) 深度定制的 Root 级隐私防护与反遥测应用。
+
+            #### 📦 产物说明：
+            - **`PrivacyGuard-${{ env.BUILD_VERSION }}-release.apk`**: 生产/发布版 Android 应用安装包
+            - **`PrivacyGuard-${{ env.BUILD_VERSION }}-debug.apk`**: 调试版应用安装包
+            - **`PrivacyGuard-Module-${{ env.BUILD_VERSION }}.zip`**: 配套 Magisk / KernelSU / APatch 模块压缩包（可在 Root 管理器中直接刷入开机自启）
+
+            #### 🚀 核心防护特性：
+            - **四层立体防御**：L1 Hosts屏蔽 + L2 IPv4硬件熔断 + L3 IPv6双栈同封 + L4 DNS强制兜底
+            - **小米隐私毒瘤深度清算**：一键安全冻结 `SystemHelper`、`MSA`、`小米统计`，精准域名阻断智能服务广告
+            - **核心白名单保护**：放行 GitHub、LSPosed 在线更新与小米账号验证，杜绝误伤
+            - **控制中心下拉磁贴**：下拉状态栏一键开关全机防护

@@ -1,0 +1,9 @@
+<resources>
+    <string name="app_name">隐私守卫</string>
+    <string name="app_subtitle">专为小米深度定制 · Root 级反遥测</string>
+    <string name="tile_label">隐私守卫</string>
+    <string name="tile_active">全机防护已开启</string>
+    <string name="tile_inactive">隐私防护已暂停</string>
+    <string name="protection_running">全机隐私四层拦截正在运行中</string>
+    <string name="protection_stopped">隐私防护已停止</string>
+</resources>

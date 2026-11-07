@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- 小米 HyperOS 专属调色盘 -->
+    <color name="miui_blue">#0A59F7</color>
+    <color name="miui_blue_variant">#0047D4</color>
+    <color name="miui_green">#00C070</color>
+    <color name="miui_red">#FF3B30</color>
+    <color name="miui_orange">#FF8800</color>
+    <color name="miui_card_bg_light">#F5F6F8</color>
+    <color name="miui_card_bg_dark">#1E1F22</color>
+</resources>

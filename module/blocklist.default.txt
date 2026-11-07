@@ -1,0 +1,124 @@
+# FJ HostsBlock 屏蔽块表 v1.3
+# 段落 [name] 开头，域名一行一个，# 注释
+# 段落开关在 WebUI 或 /data/adb/FJ_HostsBlock/config 里控制：
+#   SEG_TELEMETRY / SEG_ANTIFRAUD / SEG_RISKGATE / SEG_MIUIAD / SEG_DOH / SEG_ADSDK
+
+[telemetry]
+# 小米安全中心 多媒体/视频回传（com.miui.securitycenter、com.miui.guardprovider 实测命中）
+flash.sec.miui.com
+flash.sec.jmiui.com
+flash.sec.xiaomi.com
+# 手机管家 数据上报：data/upload、adv/game_ad/report、adv/tail、peep/pageConfigs
+data.sec.miui.com
+# 联通 终端管理遥测（含 18080 端口）
+dm.wo.com.cn
+dmp.wo.com.cn
+
+[antifraud]
+# MIUI 反诈行为特征与哈希上报
+fraud-detection.engine.miui.com
+fraud.engine.miui.com
+antispam.sec.miui.com
+# 中国信通院 统一反诈接口
+eps.caict.ac.cn
+eps.caict.cn
+
+[riskgate]
+# 第三方风控网关
+gateway-papa.cloud.weizhi.com
+cloud.weizhi.com
+api.weizhi.com
+
+[miuiad]
+api.ad.xiaomi.com
+tracking.miui.com
+tracking.intl.miui.com
+data.mistat.xiaomi.com
+mistat.xiaomi.com
+metok.sys.miui.com
+sdkconfig.ad.intl.xiaomi.com
+sdkconfig.ad.xiaomi.com
+ad.mi.com
+ad.xiaomi.com
+adv.sec.miui.com
+# 广告曝光/点击监测上报（智能服务 com.miui.systemAdSolution 实测命中，
+# 出现在 track/l、utils/notification/i、zeus/mimo/sdk/utils/n 三个类）
+monitor-check.ad.xiaomi.com
+staging-monitor-check.ad.xiaomi.com
+# 广告预发/测试环境
+test.ad.xiaomi.com
+preview.ad.xiaomi.com
+# 广告落地页（zeus landingpage SDK）
+site.e.mi.com
+staging-site.e.mi.com
+m.track.miui.com
+cdn.ad.xiaomi.com
+logupdate.avlyun.sec.miui.com
+api.avlyun.sec.miui.com
+appmarket.data.miui.com
+promotion.appmarket.xiaomi.com
+
+[doh]
+# 公共加密 DNS 入口（DoH / 明文 DNS 主机名），DNS_GUARD 开启时会被拦
+dns.google
+dns.google.com
+cloudflare-dns.com
+mozilla.cloudflare-dns.com
+chrome.cloudflare-dns.com
+one.one.one.one
+1dot1dot1dot1.cloudflare-dns.com
+dns.quad9.net
+dns9.quad9.net
+doh.pub
+dot.pub
+dns.alidns.com
+doh.alidns.com
+dns.360.cn
+doh.360.cn
+doh.opendns.com
+dns.opendns.com
+doh.dns.sb
+dns.adguard.com
+dns.adguard-dns.com
+doh.cleanbrowsing.org
+dns.nextdns.io
+freedns.controld.com
+doh.applied-privacy.net
+dns.electrotank.com
+
+[adsdk]
+graph.facebook.com
+app-measurement.com
+umeng.com
+ulogs.umeng.com
+analytics.umeng.com
+openlog.umeng.com
+res.log.mobilelog.umeng.com
+crashsdk.m.umeng.com
+cnzz.com
+sdk.e.qq.com
+mi.gdt.qq.com
+gdt.qq.com
+pingfore.qq.com
+beacon.qq.com
+pingjs.qq.com
+adservice.google.com
+pagead2.googlesyndication.com
+securepubads.g.doubleclick.net
+ads.doubleclick.net
+csi.gstatic.com
+tpc.googlesyndication.com
+applovin.com
+api.applovin.com
+unityads.unity3d.com
+api.vungle.com
+ads.mopub.com
+inapp.adjust.com
+app.adjust.com
+api.branch.io
+api.amplitude.com
+api.mixpanel.com
+firebase-settings.crashlytics.com
+settings.crashlytics.com
+report.crashlytics.com
+ads.yandex.ru

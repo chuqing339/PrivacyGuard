@@ -1,0 +1,6 @@
+# FJ HostsBlock 自定义追加表 v1.3
+# 每行一个域名，# 注释，WebUI 里加域名也会写到这里
+# 支持两种写法：
+#   example-ads.com
+#   0.0.0.0 another-tracker.com
+# 这里的域名不受段落开关影响，且优先级高于块表

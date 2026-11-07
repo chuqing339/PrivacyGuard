@@ -1,0 +1,37 @@
+# FJ HostsBlock 关键域名白名单
+#
+# 这里的域名【永不屏蔽】：不会写进 hosts 挡表；解析出的 IP 也会在 IP 层放行（链首 RETURN）。
+# 用途：保护 LSPosed 在线更新、GitHub、系统更新、小米账号等关键功能，
+#       避免它们的 IP 与广告域名的 IP 撞车时被连带 REJECT。
+#
+# 格式：一行一个域名；# 加注释；分节用 [名字] 行（会被忽略）。
+# 想保护自己的域名，直接在下面追加一行即可。
+
+[github]
+# LSPosed 在线模块更新、GitHub 下载/接口、镜像加速
+github.com
+api.github.com
+codeload.github.com
+raw.githubusercontent.com
+gist.githubusercontent.com
+githubusercontent.com
+objects.githubusercontent.com
+github-releases.githubusercontent.com
+githubassets.com
+avatars.githubusercontent.com
+github.io
+ghproxy.com
+mirror.ghproxy.com
+gh-proxy.com
+jsdelivr.net
+fastly.jsdelivr.net
+cdn.jsdelivr.net
+
+[xiaomi]
+# 小米账号与系统更新（避免更新/登录因 IP 连带误伤失败）
+account.xiaomi.com
+update.miui.com
+
+[google]
+# 谷歌基础下载（海外机装/更新组件用）
+dl.google.com
