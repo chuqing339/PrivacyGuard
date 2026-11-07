@@ -24,7 +24,7 @@
 ## 🛠️ 技术架构
 
 本重构项目严格遵照指定技术栈：
-- **编程语言**：`Kotlin 2.4.20`
+- **编程语言**：`Kotlin 2.0.21`
 - **UI 框架**：`Jetpack Compose` (声明式现代 UI)
 - **视觉组件库**：`Miuix 0.9.4` (`top.yukonga.miuix.kmp:miuix-ui:0.9.4`，专为 Compose 打造的小米 HyperOS / MIUI 原生质感组件库)
 - **本地数据库**：`Room 2.8.5` (持久化存储拦截日志流、Top 排行榜、分段规则与白名单)
@@ -98,7 +98,7 @@
 ```
 PrivacyGuard/
 ├── app/
-│   ├── build.gradle.kts                # 应用级依赖构建 (Kotlin 2.4.20 + Miuix 0.9.4 + Room 2.8.5)
+│   ├── build.gradle.kts                # 应用级依赖构建 (Kotlin 2.0.21 + Miuix 0.9.4 + Room 2.8.5)
 │   ├── src/main/
 │   │   ├── AndroidManifest.xml        # 权限声明、前台服务、开机广播、快捷磁贴
 │   │   ├── assets/                    # 内置默认 blocklist.txt, whitelist.txt, hosts.base
