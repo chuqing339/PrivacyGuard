@@ -7,7 +7,7 @@ plugins {
 
 android {
     namespace = "com.privacyguard.app"
-    compileSdk = 35
+    compileSdk = 37
 
     defaultConfig {
         applicationId = "com.privacyguard.app"
