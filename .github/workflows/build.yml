@@ -53,7 +53,7 @@ jobs:
           if [ ! -f gradle/wrapper/gradle-wrapper.jar ]; then
             echo "Gradle wrapper jar missing, downloading official wrapper..."
             mkdir -p gradle/wrapper
-            curl -fsSL https://raw.githubusercontent.com/gradle/gradle/v8.13/gradle/wrapper/gradle-wrapper.jar -o gradle/wrapper/gradle-wrapper.jar || \
+            curl -fsSL https://raw.githubusercontent.com/gradle/gradle/v8.11.1/gradle/wrapper/gradle-wrapper.jar -o gradle/wrapper/gradle-wrapper.jar || \
             curl -fsSL https://services.gradle.org/distributions/gradle-wrapper.jar -o gradle/wrapper/gradle-wrapper.jar
           fi
 
