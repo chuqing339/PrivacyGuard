@@ -4,8 +4,10 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Security
@@ -18,10 +20,12 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
+import com.privacyguard.app.data.local.entity.InterceptLogEntity
 import com.privacyguard.app.data.model.PkgKind
 import com.privacyguard.app.data.model.PkgState
 import com.privacyguard.app.data.model.PrivacyScanItem
 import com.privacyguard.app.data.model.RunningProcessItem
+import com.privacyguard.app.data.repository.PackageInterceptStats
 import com.privacyguard.app.ui.components.HyperCard
 import top.yukonga.miuix.kmp.basic.Button
 import top.yukonga.miuix.kmp.basic.ButtonDefaults
@@ -33,6 +37,9 @@ import top.yukonga.miuix.kmp.basic.SmallTitle
 import top.yukonga.miuix.kmp.basic.SmallTopAppBar
 import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.basic.TextButton
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 @Composable
 fun SystemPrivacyScreen(
@@ -43,11 +50,23 @@ fun SystemPrivacyScreen(
     onOneClickOptimize: () -> Unit,
     onTogglePackage: (String, Int) -> Unit,
     onCleanFraudResidue: () -> Unit,
+    onQueryPackageStats: suspend (PrivacyScanItem) -> PackageInterceptStats,
     modifier: Modifier = Modifier
 ) {
     var showOptimizeConfirm by remember { mutableStateOf(false) }
     var pendingFreezeItem by remember { mutableStateOf<PrivacyScanItem?>(null) }
     var showResidueConfirm by remember { mutableStateOf(false) }
+
+    // 组件详情弹窗：卡片保持极简，介绍与拦截动向收进这里
+    var detailItem by remember { mutableStateOf<PrivacyScanItem?>(null) }
+    var detailStats by remember { mutableStateOf<PackageInterceptStats?>(null) }
+    val detailTimeFormat = remember { SimpleDateFormat("HH:mm:ss", Locale.getDefault()) }
+
+    LaunchedEffect(detailItem?.packageName) {
+        val item = detailItem ?: return@LaunchedEffect
+        detailStats = null
+        detailStats = onQueryPackageStats(item)
+    }
 
     val optimizeTargets = scanItems.filter {
         (it.kind == PkgKind.SAFE || it.packageName == "com.mobiletools.systemhelper") &&
@@ -164,19 +183,44 @@ fun SystemPrivacyScreen(
                 }
             }
 
-            // 3. 小米系统采集宿主组件管理
-            item {
-                SmallTitle(text = "采集宿主服务 (${scanItems.size})")
+            // 3. 采集宿主服务：按风险层级分组（低风险 → 优化项 → 需谨慎），组头样式与白名单页一致
+            if (scanItems.isEmpty()) {
+                item(key = "scan_empty") {
+                    Text(
+                        text = "尚未扫描到组件，点击右上角重新体检",
+                        fontSize = 13.sp,
+                        color = Color.Gray,
+                        modifier = Modifier.padding(horizontal = 4.dp, vertical = 8.dp)
+                    )
+                }
             }
-
-            items(scanItems, key = { it.packageName }) { item ->
-                PrivacyPackageCard(
-                    item = item,
-                    onStateChange = { targetState ->
-                        onTogglePackage(item.packageName, targetState)
-                    },
-                    onFreeze = { pendingFreezeItem = it }
-                )
+            listOf(
+                PkgKind.SAFE to "低风险",
+                PkgKind.OPT to "优化项",
+                PkgKind.RISK to "需谨慎"
+            ).forEach { (kind, groupTitle) ->
+                val members = scanItems.filter { it.kind == kind }
+                if (members.isNotEmpty()) {
+                    item(key = "header_$kind") {
+                        Text(
+                            text = "$groupTitle · ${members.size} 项",
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = Color(0xFF66707A),
+                            modifier = Modifier.padding(top = 4.dp)
+                        )
+                    }
+                    items(members, key = { it.packageName }) { item ->
+                        PrivacyPackageCard(
+                            item = item,
+                            onClick = { detailItem = item },
+                            onStateChange = { targetState ->
+                                onTogglePackage(item.packageName, targetState)
+                            },
+                            onFreeze = { pendingFreezeItem = it }
+                        )
+                    }
+                }
             }
 
             // 4. 运行中敏感探测进程
@@ -193,6 +237,18 @@ fun SystemPrivacyScreen(
     }
 
     // 二次确认对话框
+    detailItem?.let { item ->
+        PackageDetailDialog(
+            item = item,
+            stats = detailStats,
+            dateFormat = detailTimeFormat,
+            onClose = {
+                detailItem = null
+                detailStats = null
+            }
+        )
+    }
+
     if (showOptimizeConfirm) {
         ConfirmDialog(
             title = "确认一键深度优化",
@@ -270,15 +326,17 @@ private fun RunningProcCard(proc: RunningProcessItem) {
 }
 
 /**
- * 隐私组件卡片：标题 + 状态徽章 / 类别 + 包名 / 底部操作按钮
+ * 隐私组件卡片：极简两行（标题+徽章 / 类别+包名）+ 操作按钮；
+ * 介绍与拦截动向收进点击后的详情弹窗
  */
 @Composable
 private fun PrivacyPackageCard(
     item: PrivacyScanItem,
+    onClick: () -> Unit,
     onStateChange: (Int) -> Unit,
     onFreeze: (PrivacyScanItem) -> Unit
 ) {
-    HyperCard {
+    HyperCard(onClick = onClick) {
         Column(modifier = Modifier.fillMaxWidth()) {
             // 第一行：标题 + 状态徽章
             Row(
@@ -410,6 +468,155 @@ private fun PrivacyPackageCard(
                 }
             }
         }
+    }
+}
+
+/**
+ * 组件详情弹窗：介绍（收归于此的长文案）+ 今日/累计拦截统计 + 今日动向列表
+ */
+@Composable
+private fun PackageDetailDialog(
+    item: PrivacyScanItem,
+    stats: PackageInterceptStats?,
+    dateFormat: SimpleDateFormat,
+    onClose: () -> Unit
+) {
+    Dialog(onDismissRequest = onClose) {
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            insideMargin = PaddingValues(20.dp)
+        ) {
+            // 标题行：名称 + 状态徽章
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    text = item.label,
+                    fontSize = 17.sp,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.weight(1f)
+                )
+                val (stateText, stateColor) = when (item.state) {
+                    PkgState.ENABLED -> "运行中" to Color(0xFFFF3B30)
+                    PkgState.DISABLED -> "已冻结" to Color(0xFF00C070)
+                    PkgState.RESTRICTED -> "权限受限" to Color(0xFF0A59F7)
+                    PkgState.ABSENT -> "未预装" to Color(0xFF8A919F)
+                }
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(6.dp))
+                        .background(stateColor.copy(alpha = 0.12f))
+                        .padding(horizontal = 8.dp, vertical = 3.dp)
+                ) {
+                    Text(stateText, color = stateColor, fontSize = 11.sp, fontWeight = FontWeight.Medium)
+                }
+            }
+            Spacer(modifier = Modifier.height(2.dp))
+            Text(text = item.packageName, fontSize = 11.sp, color = Color.Gray)
+
+            // 介绍：卡片上收起的说明文案在此完整展示
+            if (item.description.isNotBlank()) {
+                Spacer(modifier = Modifier.height(10.dp))
+                Text(text = item.description, fontSize = 13.sp, color = Color.Gray, lineHeight = 18.sp)
+            }
+            if (item.warningText.isNotBlank()) {
+                Spacer(modifier = Modifier.height(6.dp))
+                Text(text = item.warningText, fontSize = 12.sp, color = Color(0xFFFF8800), lineHeight = 17.sp)
+            }
+
+            // 拦截统计：今日 / 累计
+            Spacer(modifier = Modifier.height(14.dp))
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                StatBox("今日拦截", stats?.today, modifier = Modifier.weight(1f))
+                StatBox("累计拦截", stats?.total, modifier = Modifier.weight(1f))
+            }
+
+            // 今日动向：该组件今天的逐条拦截事件
+            Spacer(modifier = Modifier.height(14.dp))
+            Text(text = "今日动向", fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+            Spacer(modifier = Modifier.height(4.dp))
+            val events = stats?.todayEvents.orEmpty()
+            when {
+                stats == null -> Text("统计加载中…", fontSize = 12.sp, color = Color.Gray)
+                events.isEmpty() -> Text(
+                    text = if (item.state == PkgState.DISABLED) "组件已冻结，今日无活动" else "今日无拦截记录",
+                    fontSize = 12.sp,
+                    color = Color.Gray
+                )
+                else -> {
+                    LazyColumn(modifier = Modifier.heightIn(max = 220.dp)) {
+                        items(events.size) { idx ->
+                            val e = events[idx]
+                            Row(
+                                modifier = Modifier.fillMaxWidth().padding(vertical = 5.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(5.dp))
+                                        .background(Color(0xFFFF3B30).copy(alpha = 0.1f))
+                                        .padding(horizontal = 5.dp, vertical = 2.dp)
+                                ) {
+                                    Text(e.layerType, color = Color(0xFFFF3B30), fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                                }
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                    text = e.target,
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.Medium,
+                                    maxLines = 1,
+                                    modifier = Modifier.weight(1f)
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                    text = dateFormat.format(Date(e.timestamp)),
+                                    fontSize = 11.sp,
+                                    color = Color.Gray
+                                )
+                            }
+                            if (idx < events.lastIndex) {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(1.dp)
+                                        .background(Color.LightGray.copy(alpha = 0.2f))
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+            Button(
+                onClick = onClose,
+                modifier = Modifier.fillMaxWidth(),
+                colors = ButtonDefaults.buttonColors(
+                    color = Color(0xFF8A919F).copy(alpha = 0.15f),
+                    contentColor = Color(0xFF555555)
+                )
+            ) {
+                Text("关闭", fontSize = 13.sp, fontWeight = FontWeight.Medium)
+            }
+        }
+    }
+}
+
+/** 统计数字块（今日/累计），有拦截时红色高亮 */
+@Composable
+private fun StatBox(label: String, value: Int?, modifier: Modifier = Modifier) {
+    Column(
+        modifier = modifier
+            .clip(RoundedCornerShape(10.dp))
+            .background(Color(0xFF8A919F).copy(alpha = 0.1f))
+            .padding(vertical = 10.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Text(
+            text = value?.toString() ?: "—",
+            fontSize = 20.sp,
+            fontWeight = FontWeight.Bold,
+            color = if ((value ?: 0) > 0) Color(0xFFFF3B30) else Color(0xFF8A919F)
+        )
+        Text(text = "$label（次）", fontSize = 11.sp, color = Color.Gray)
     }
 }
 

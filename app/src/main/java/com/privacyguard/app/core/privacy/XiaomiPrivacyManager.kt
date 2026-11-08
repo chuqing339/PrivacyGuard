@@ -18,22 +18,24 @@ object XiaomiPrivacyManager {
     private const val TAG = "XiaomiPrivacyManager"
 
     // 针对小米重点隐私监控服务的预设元数据
+    // 命名约定：label 只保留组件短名（不加括号说明），括号内的说明性文字一律并入
+    // description（体检页卡片极简展示，点击详情弹窗查看完整介绍）
     // 覆盖清单与 Hyper 隐私卫士 0.7.8 逆向分析中的 8 个目标包对齐（另保留本项目独有的 joyose/bugreport/daemon）
     private val TARGET_PKGS = listOf(
-        Triple("com.miui.securitycenter", "安全中心数据引擎（手机管家）", PkgKind.RISK),
-        Triple("com.miui.guardprovider", "病毒扫描与遥测回传（GuardProvider）", PkgKind.OPT),
-        Triple("com.mobiletools.systemhelper", "SystemHelper（运营商定制遥测探针）", PkgKind.OPT),
-        Triple("com.miui.analytics", "小米统计服务（静默搜集用户行为与App时长）", PkgKind.SAFE),
-        Triple("com.miui.msa", "MSA 广告标识服务（个性化广告画像与追踪）", PkgKind.SAFE),
+        Triple("com.miui.securitycenter", "安全中心数据引擎", PkgKind.RISK),
+        Triple("com.miui.guardprovider", "病毒扫描与遥测回传", PkgKind.OPT),
+        Triple("com.mobiletools.systemhelper", "SystemHelper", PkgKind.OPT),
+        Triple("com.miui.analytics", "小米统计服务", PkgKind.SAFE),
+        Triple("com.miui.msa", "MSA 广告标识服务", PkgKind.SAFE),
         Triple("com.miui.msa.global", "MSA 全球广告服务", PkgKind.SAFE),
-        Triple("com.miui.misightservice", "MiSight（设备诊断日志后台上传）", PkgKind.OPT),
-        Triple("com.xiaomi.aicr", "AICR（AI 组件行为统计与风控遥测）", PkgKind.OPT),
-        Triple("com.xiaomi.registration", "电信终端注册（CTEI 上报）", PkgKind.OPT),
-        Triple("com.miui.contentcatcher", "ContentCatcher（内容捕获行为统计）", PkgKind.SAFE),
-        Triple("com.xiaomi.joyose", "Joyose（云控策略下发与性能遥测）", PkgKind.OPT),
-        Triple("com.miui.bugreport", "小米错误日志上报（全量崩溃现场回传）", PkgKind.OPT),
+        Triple("com.miui.misightservice", "MiSight", PkgKind.OPT),
+        Triple("com.xiaomi.aicr", "AICR", PkgKind.OPT),
+        Triple("com.xiaomi.registration", "电信终端注册", PkgKind.OPT),
+        Triple("com.miui.contentcatcher", "ContentCatcher", PkgKind.SAFE),
+        Triple("com.xiaomi.joyose", "Joyose", PkgKind.OPT),
+        Triple("com.miui.bugreport", "小米错误日志上报", PkgKind.OPT),
         Triple("com.miui.daemon", "系统守护日志回传", PkgKind.OPT),
-        Triple("com.miui.systemAdSolution", "智能服务（开屏广告宿主）", PkgKind.RISK)
+        Triple("com.miui.systemAdSolution", "智能服务", PkgKind.RISK)
     )
 
     private val RESTRICTED_APPOPS = listOf(
@@ -103,12 +105,18 @@ object XiaomiPrivacyManager {
             val desc = when (pkg) {
                 "com.miui.analytics" -> "全天候在后台静默收集用户打开App的时间、频率与屏幕使用，建议立即冻结。"
                 "com.miui.msa" -> "负责下发广告及生成不可变更的广告追踪标识，建议禁用或限制。"
-                "com.miui.guardprovider" -> "除病毒扫描外，还在后台枚举应用清单、采集远程下发的 APK 样本并上传查杀报告。"
-                "com.miui.securitycenter" -> "反诈行为记录（通话/屏幕共享时长等）持续写入本地 fraud_detection_data.db，并向上报接口提供数据。"
+                "com.miui.msa.global" -> "MSA 国际版，下发广告并生成广告追踪标识。"
+                "com.miui.guardprovider" -> "GuardProvider：除病毒扫描外，还在后台枚举应用清单、采集远程下发的 APK 样本并上传查杀报告。"
+                "com.miui.securitycenter" -> "手机管家主组件：反诈行为记录（通话/屏幕共享时长等）持续写入本地 fraud_detection_data.db，并向上报接口提供数据。"
                 "com.miui.misightservice" -> "设备诊断事件打包上传，测试机型还会做 OAID/序列号级身份识别。"
-                "com.xiaomi.aicr" -> "AI 组件接入 OneTrack 统计，行为事件随安全与广告统计一并上报。"
-                "com.xiaomi.registration" -> "向电信侧上报 IMEI/IMSI/ICCID/基站与 CTEI 注册信息，含明文 HTTP 通道。"
-                "com.miui.contentcatcher" -> "捕获内容并产出行为统计事件，经 OneTrack 事件入口发布。"
+                "com.xiaomi.aicr" -> "AI 组件行为统计与风控遥测，接入 OneTrack 统计，行为事件随安全与广告统计一并上报。"
+                "com.xiaomi.registration" -> "电信终端注册（CTEI 上报）：向电信侧上报 IMEI/IMSI/ICCID/基站信息，含明文 HTTP 通道。"
+                "com.miui.contentcatcher" -> "内容捕获行为统计，捕获内容并产出行为事件，经 OneTrack 事件入口发布。"
+                "com.mobiletools.systemhelper" -> "运营商定制遥测探针。"
+                "com.xiaomi.joyose" -> "云控策略下发与性能遥测通道。"
+                "com.miui.bugreport" -> "全量崩溃现场日志回传。"
+                "com.miui.daemon" -> "系统守护日志回传通道。"
+                "com.miui.systemAdSolution" -> "系统应用开屏广告宿主。"
                 else -> "系统后台驻留服务。"
             }
 
@@ -228,18 +236,19 @@ object XiaomiPrivacyManager {
      */
     suspend fun scanRunningProcs(): List<RunningProcessItem> = withContext(Dispatchers.IO) {
         val items = mutableListOf<RunningProcessItem>()
+        // 进程别名与体检页 TARGET_PKGS 的 label 保持同一套命名，跨页面口径统一
         val targets = listOf(
             "com.miui.securitycenter" to "安全中心数据引擎",
             "com.miui.guardprovider" to "病毒扫描与遥测回传",
-            "com.mobiletools.systemhelper" to "SystemHelper 探针",
-            "com.miui.systemAdSolution" to "智能服务广告引擎",
-            "com.miui.analytics" to "小米分析统计",
-            "com.miui.msa" to "MSA 广告服务",
+            "com.mobiletools.systemhelper" to "SystemHelper",
+            "com.miui.systemAdSolution" to "智能服务",
+            "com.miui.analytics" to "小米统计服务",
+            "com.miui.msa" to "MSA 广告标识服务",
             "com.miui.msa.global" to "MSA 全球广告服务",
-            "com.miui.misightservice" to "MiSight 诊断上传",
-            "com.xiaomi.aicr" to "AICR AI 组件遥测",
+            "com.miui.misightservice" to "MiSight",
+            "com.xiaomi.aicr" to "AICR",
             "com.xiaomi.registration" to "电信终端注册",
-            "com.miui.contentcatcher" to "内容捕获遥测"
+            "com.miui.contentcatcher" to "ContentCatcher"
         )
 
         for ((key, label) in targets) {

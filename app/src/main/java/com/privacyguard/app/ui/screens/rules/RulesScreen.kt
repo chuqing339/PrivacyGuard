@@ -4,6 +4,7 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -33,6 +34,7 @@ import com.privacyguard.app.ui.components.SegmentedTabs
 import top.yukonga.miuix.kmp.basic.Button
 import top.yukonga.miuix.kmp.basic.ButtonDefaults
 import top.yukonga.miuix.kmp.basic.Card
+import top.yukonga.miuix.kmp.basic.FloatingActionButton
 import top.yukonga.miuix.kmp.basic.Icon
 import top.yukonga.miuix.kmp.basic.IconButton
 import top.yukonga.miuix.kmp.basic.Scaffold
@@ -65,6 +67,16 @@ fun RulesScreen(
     Scaffold(
         topBar = {
             SmallTopAppBar(title = "规则与块表")
+        },
+        // 添加入口仅存在于自定义/白名单两个 tab：HyperOS 风格圆形悬浮按钮，右下角
+        floatingActionButton = {
+            if (selectedTab != 0) {
+                FloatingActionButton(
+                    onClick = { showAddDialog = true }
+                ) {
+                    Icon(Icons.Default.Add, contentDescription = "添加", tint = Color.White)
+                }
+            }
         }
     ) { innerPadding ->
         Column(
@@ -72,27 +84,13 @@ fun RulesScreen(
                 .fillMaxSize()
                 .padding(innerPadding)
         ) {
-            // 标签栏 + 条件添加按钮同行，贴合顶部
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 8.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                SegmentedTabs(
-                    tabs = tabTitles,
-                    selectedTabIndex = selectedTab,
-                    onTabSelected = { selectedTab = it },
-                    modifier = Modifier.weight(1f)
-                )
-                if (selectedTab != 0) {
-                    IconButton(onClick = { showAddDialog = true }) {
-                        Icon(Icons.Default.Add, contentDescription = "添加", tint = Color(0xFF0A59F7))
-                    }
-                } else {
-                    Spacer(modifier = Modifier.width(48.dp))
-                }
-            }
+            // 标签栏：添加入口已改为右下角悬浮按钮
+            SegmentedTabs(
+                tabs = tabTitles,
+                selectedTabIndex = selectedTab,
+                onTabSelected = { selectedTab = it },
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+            )
 
             when (selectedTab) {
                 0 -> {
@@ -115,11 +113,12 @@ fun RulesScreen(
                 1 -> {
                     // 自定义域名
                     if (customRules.isEmpty()) {
-                        EmptyListHint("暂无自定义规则，点击右上角加号添加")
+                        EmptyListHint("暂无自定义规则，点击右下角加号添加")
                     } else {
                         LazyColumn(
                             modifier = Modifier.fillMaxSize(),
-                            contentPadding = PaddingValues(16.dp),
+                            // 底部预留悬浮按钮高度，避免最后一条被遮
+                            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 88.dp),
                             verticalArrangement = Arrangement.spacedBy(10.dp)
                         ) {
                             items(customRules, key = { it.domain }) { rule ->
@@ -218,7 +217,8 @@ private fun WhitelistTab(
 
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(16.dp),
+        // 底部预留悬浮按钮高度，避免最后一条被遮
+        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 88.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
         // 内置白名单四大折叠分组
@@ -261,11 +261,14 @@ private fun CollapsibleWhitelistGroup(
 
     HyperCard {
         Column(modifier = Modifier.fillMaxWidth()) {
-            // 分组头部：点击展开/收起
+            // 分组头部：点击展开/收起（无水波纹遮罩，与全站卡片一致）
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clickable { expanded = !expanded }
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null
+                    ) { expanded = !expanded }
                     .padding(vertical = 4.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {

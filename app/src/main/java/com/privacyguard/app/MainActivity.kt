@@ -238,6 +238,10 @@ class MainActivity : ComponentActivity() {
                                             val result = app.privacyRepository.cleanFraudResidue()
                                             Toast.makeText(this@MainActivity, result.message, Toast.LENGTH_LONG).show()
                                         }
+                                    },
+                                    // 组件详情弹窗的拦截统计（累计/今日/今日动向），从拦截日志库按组件口径查询
+                                    onQueryPackageStats = { item ->
+                                        app.interceptLogRepository.packageInterceptStats(item.packageName, item.label)
                                     }
                                 )
                             }

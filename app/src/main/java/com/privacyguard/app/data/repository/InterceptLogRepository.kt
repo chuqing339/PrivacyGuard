@@ -20,11 +20,34 @@ import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.withContext
 import java.util.Calendar
 
+/**
+ * 单组件拦截统计（体检页组件详情）
+ */
+data class PackageInterceptStats(
+    val total: Int,
+    val today: Int,
+    val todayEvents: List<InterceptLogEntity> = emptyList()
+)
+
 class InterceptLogRepository(
     private val context: Context,
     private val interceptLogDao: InterceptLogDao,
     private val settingsDataStore: SettingsDataStore
 ) {
+
+    /**
+     * 单组件拦截统计：累计/今日拦截数与今日事件列表，
+     * 与 deleteByPackageOrLabel 同口径按 packageName 或 appLabel 匹配
+     */
+    suspend fun packageInterceptStats(packageName: String, appLabel: String): PackageInterceptStats =
+        withContext(Dispatchers.IO) {
+            val midnight = currentMidnight()
+            PackageInterceptStats(
+                total = interceptLogDao.countByPackage(packageName, appLabel),
+                today = interceptLogDao.countByPackageSince(packageName, appLabel, midnight),
+                todayEvents = interceptLogDao.recentByPackageSince(packageName, appLabel, midnight)
+            )
+        }
 
     companion object {
         private const val TAG = "InterceptLogRepository"

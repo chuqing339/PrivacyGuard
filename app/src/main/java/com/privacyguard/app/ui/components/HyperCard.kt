@@ -1,8 +1,10 @@
 package com.privacyguard.app.ui.components
 
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -20,7 +22,12 @@ fun HyperCard(
     content: @Composable ColumnScope.() -> Unit
 ) {
     val clickModifier = if (onClick != null) {
-        Modifier.clickable(onClick = onClick)
+        // indication = null：去掉点击时的半透明水波纹遮罩，HyperOS 卡片按压无 ripple 观感
+        Modifier.clickable(
+            interactionSource = remember { MutableInteractionSource() },
+            indication = null,
+            onClick = onClick
+        )
     } else {
         Modifier
     }

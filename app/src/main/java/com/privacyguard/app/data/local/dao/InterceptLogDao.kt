@@ -65,6 +65,34 @@ interface InterceptLogDao {
     @Query("DELETE FROM intercept_logs WHERE packageName = :packageName OR appLabel = :label")
     suspend fun deleteByPackageOrLabel(packageName: String, label: String)
 
+    // --- 单组件统计（体检页组件详情）：与 deleteByPackageOrLabel 同口径，按包名或应用名匹配；
+    //     空串一侧不参与匹配，避免空 appLabel 误命中所有空标签行 ---
+
+    @Query("""
+        SELECT COUNT(*) FROM intercept_logs
+        WHERE (packageName = :packageName AND :packageName != '')
+           OR (appLabel = :label AND :label != '')
+    """)
+    suspend fun countByPackage(packageName: String, label: String): Int
+
+    @Query("""
+        SELECT COUNT(*) FROM intercept_logs
+        WHERE ((packageName = :packageName AND :packageName != '')
+           OR (appLabel = :label AND :label != ''))
+        AND timestamp >= :sinceTime
+    """)
+    suspend fun countByPackageSince(packageName: String, label: String, sinceTime: Long): Int
+
+    @Query("""
+        SELECT * FROM intercept_logs
+        WHERE ((packageName = :packageName AND :packageName != '')
+           OR (appLabel = :label AND :label != ''))
+        AND timestamp >= :sinceTime
+        ORDER BY timestamp DESC
+        LIMIT :limit
+    """)
+    suspend fun recentByPackageSince(packageName: String, label: String, sinceTime: Long, limit: Int = 15): List<InterceptLogEntity>
+
     @Query("DELETE FROM intercept_logs WHERE id NOT IN (SELECT id FROM intercept_logs ORDER BY timestamp DESC LIMIT :maxKeep)")
     suspend fun trimOldLogs(maxKeep: Int = 500)
 }
