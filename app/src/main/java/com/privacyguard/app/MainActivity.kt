@@ -228,6 +228,12 @@ class MainActivity : ComponentActivity() {
                                         coroutineScope.launch {
                                             app.privacyRepository.togglePackage(pkg, state)
                                         }
+                                    },
+                                    onCleanFraudResidue = {
+                                        coroutineScope.launch {
+                                            val result = app.privacyRepository.cleanFraudResidue()
+                                            Toast.makeText(this@MainActivity, result.message, Toast.LENGTH_LONG).show()
+                                        }
                                     }
                                 )
                             }

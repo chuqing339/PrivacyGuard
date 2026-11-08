@@ -42,11 +42,14 @@ fun SystemPrivacyScreen(
     onRescan: () -> Unit,
     onOneClickOptimize: () -> Unit,
     onTogglePackage: (String, Int) -> Unit,
+    onCleanFraudResidue: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     // 危险冻结操作二次确认状态
     var showOptimizeConfirm by remember { mutableStateOf(false) }
     var pendingFreezeItem by remember { mutableStateOf<PrivacyScanItem?>(null) }
+    // 反诈记录清理二次确认
+    var showResidueConfirm by remember { mutableStateOf(false) }
 
     // 与 PrivacyRepository.oneClickOptimize 的目标筛选口径保持一致
     val optimizeTargets = scanItems.filter {
@@ -135,7 +138,41 @@ fun SystemPrivacyScreen(
                 }
             }
 
-            // 2. 小米系统采集宿主组件管理
+            // 2. 本地采集残留清理（拦截上报 ≠ 清除已落地的历史数据）
+            item {
+                SmallTitle(text = "本地采集残留清理")
+            }
+            item {
+                HyperCard {
+                    Column(modifier = Modifier.fillMaxWidth()) {
+                        Text(
+                            text = "反诈行为记录深度清理",
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Text(
+                            text = "通话、屏幕共享等反诈行为记录会长期留存在手机管家本地数据库（fraud_detection_data.db）中，仅靠拦截上报无法清除历史。本操作先整库备份到 /data/adb/privacy_guard/fraud_backup/，再删除原文件，可随时还原。",
+                            fontSize = 12.sp,
+                            color = Color.Gray,
+                            lineHeight = 16.sp
+                        )
+                        Spacer(modifier = Modifier.height(12.dp))
+                        Button(
+                            onClick = { showResidueConfirm = true },
+                            modifier = Modifier.fillMaxWidth().height(40.dp),
+                            colors = ButtonDefaults.buttonColors(
+                                color = Color(0xFFFF8800).copy(alpha = 0.15f),
+                                contentColor = Color(0xFFFF8800)
+                            )
+                        ) {
+                            Text("备份并清理反诈记录", fontSize = 13.sp, fontWeight = FontWeight.Medium)
+                        }
+                    }
+                }
+            }
+
+            // 3. 小米系统采集宿主组件管理
             item {
                 SmallTitle(text = "系统级采集宿主服务 (${scanItems.size})")
             }
@@ -150,7 +187,7 @@ fun SystemPrivacyScreen(
                 )
             }
 
-            // 3. 运行中敏感探测进程
+            // 4. 运行中敏感探测进程
             if (runningProcs.isNotEmpty()) {
                 item {
                     SmallTitle(text = "正在活跃的采集/安全引擎进程 (${runningProcs.size})")
@@ -206,6 +243,20 @@ fun SystemPrivacyScreen(
                 pendingFreezeItem = null
             },
             onDismiss = { pendingFreezeItem = null }
+        )
+    }
+
+    // 反诈记录清理前二次确认（会先整库备份再删除）
+    if (showResidueConfirm) {
+        ConfirmDialog(
+            title = "确认清理反诈行为记录",
+            packages = listOf("com.miui.securitycenter · fraud_detection_data.db（含 -wal/-shm 伴生文件）"),
+            warningText = "将删除手机管家本地保存的全部历史反诈行为记录（通话/屏幕共享时长等）。删除前会整库备份到 /data/adb/privacy_guard/fraud_backup/<时间戳>/，需要时可手动还原。",
+            onConfirm = {
+                onCleanFraudResidue()
+                showResidueConfirm = false
+            },
+            onDismiss = { showResidueConfirm = false }
         )
     }
 }

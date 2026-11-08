@@ -6,6 +6,7 @@ import com.privacyguard.app.data.local.entity.PrivacyPkgEntity
 import com.privacyguard.app.data.model.PkgKind
 import com.privacyguard.app.data.model.PkgState
 import com.privacyguard.app.data.model.PrivacyScanItem
+import com.privacyguard.app.data.model.ResidueCleanResult
 import com.privacyguard.app.data.model.RunningProcessItem
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -87,16 +88,25 @@ class PrivacyRepository(
     }
 
     /**
+     * 清理手机管家本地反诈行为记录库（先备份后删除，可恢复）
+     */
+    suspend fun cleanFraudResidue(): ResidueCleanResult = withContext(Dispatchers.IO) {
+        XiaomiPrivacyManager.cleanFraudDatabases()
+    }
+
+    /**
      * 计算隐私安全健康得分 (0 - 100)
+     * 单包扣分按 14 个候选组件的基数标定（SAFE -8 / OPT -4 / RISK -2），
+     * 保证"全开"与"全冻结"两个极端之间仍有足够区分度，而不是动辄归零。
      */
     private fun calculateHealthScore(items: List<PrivacyScanItem>): Int {
         var score = 100
         for (item in items) {
             if (item.state == PkgState.ENABLED) {
                 when (item.kind) {
-                    PkgKind.SAFE -> score -= 25 // 严重扣分（小米统计与MSA常驻采集）
-                    PkgKind.OPT -> score -= 15  // 运营商探针/守护进程
-                    PkgKind.RISK -> score -= 5
+                    PkgKind.SAFE -> score -= 8 // 常驻采集（小米统计、MSA、内容捕获）
+                    PkgKind.OPT -> score -= 4  // 探针/诊断/注册类
+                    PkgKind.RISK -> score -= 2 // 不建议直接冻结的主组件
                 }
             }
         }

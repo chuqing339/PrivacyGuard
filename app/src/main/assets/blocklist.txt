@@ -1,4 +1,6 @@
-# PrivacyGuard 屏蔽块表 v2.6
+# PrivacyGuard 屏蔽块表 v2.7
+# v2.7：telemetry 段补入电信终端注册（zzhc.vnet.cn / typdm.tydevice.com）
+#       与 MiSight 测试设备识别（data.pt.xiaomi.com / nptapi.mioffice.cn）
 # 段落 [name] 开头，域名一行一个，# 注释
 # 段落开关在 App「规则中心」页控制（Room rule_segments 表）
 
@@ -12,6 +14,13 @@ data.sec.miui.com
 # 联通 终端管理遥测（含 18080 端口）
 dm.wo.com.cn
 dmp.wo.com.cn
+# 电信终端注册（com.xiaomi.registration 实证）：CTEI 注册上报
+zzhc.vnet.cn
+# 终端注册明文 HTTP 上报：以查询参数提交 CTEI/MAC/IP/上联MAC/连接方式/固件版本
+typdm.tydevice.com
+# MiSight 测试用户身份识别：OAID 校查与 isTrialDevice 判定
+data.pt.xiaomi.com
+nptapi.mioffice.cn
 
 [antifraud]
 # MIUI 反诈行为特征与哈希上报

@@ -76,10 +76,20 @@ data class RunningProcessItem(
 )
 
 /**
+ * 本地采集残留清理结果（反诈行为记录库等）
+ */
+data class ResidueCleanResult(
+    val removedFiles: List<String>,
+    val backupDir: String,
+    val success: Boolean,
+    val message: String
+)
+
+/**
  * 预设分段
  */
 enum class SegmentType(val key: String, val title: String, val defaultDesc: String) {
-    TELEMETRY("telemetry", "小米遥测与多媒体回传", "拦截安全中心多媒体/视频回传、相册识别与手机管家数据上报"),
+    TELEMETRY("telemetry", "小米遥测与多媒体回传", "拦截安全中心多媒体/视频回传、手机管家数据上报、电信终端注册(CTEI)与 MiSight 测试设备识别"),
     ANTIFRAUD("antifraud", "MIUI反诈特征与信通院", "阻止将用户已安装App列表、Hash哈希与行为记录向反诈中心和信通院上报"),
     RISKGATE("riskgate", "第三方风控隐秘探针", "阻断微知等嵌入在系统与应用内部的隐秘设备指纹与风控探针"),
     MIUIAD("miuiad", "MIUI/HyperOS广告与追踪", "屏蔽智能服务(Zeus/Mimo)、广告曝光点击追踪、开屏监测等"),

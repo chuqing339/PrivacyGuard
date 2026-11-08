@@ -16,6 +16,7 @@
    - `com.miui.analytics`：全天候收集各应用使用时长、启动频次与操作习惯。
    - `com.miui.msa`：生成不可变更的广告追踪标识符 (OAID) 并持续推送定向广告。
    - `com.xiaomi.joyose`：云控性能调度与温控限制。
+5. **电信终端注册与测试设备身份识别**：`com.xiaomi.registration` 向 `zzhc.vnet.cn` 上报 CTEI 终端注册信息，并经 `typdm.tydevice.com` 以**明文 HTTP 查询参数**提交 CTEI/MAC/IP/上联MAC/连接方式/固件版本；`com.miui.misightservice` 对测试机型经 `data.pt.xiaomi.com`、`nptapi.mioffice.cn` 做 OAID/序列号级身份识别。
 
 **《隐私守卫》** 将原有 Magisk Shell 模块全面重构成现代化的 Android 原生 Root 应用，结合小米 HyperOS 视觉语言，提供从底层驱动、内核 iptables/hosts 拦截到系统服务冻结的立体化隐私防护。
 
@@ -83,13 +84,23 @@
 - **Top 偷跑排行**：自动聚合各应用偷跑被阻断的频次，一目了然看清哪款应用在疯狂后台尝试上传数据。
 
 ### 4. 小米隐私深度体检 (HyperOS / MIUI Dissector)
-- 对小米系统预装的隐私采集组件进行全面扫描与健康评分（0-100分）。
-- **一键深度优化**：自动安全冻结无界面常驻探针（`com.miui.analytics`、`com.miui.msa`、`com.mobiletools.systemhelper`）。
+- 对小米系统预装的隐私采集组件进行全面扫描与健康评分（0-100分），覆盖 14 个重点组件：
+  - 运营商探针 `com.mobiletools.systemhelper`、电信终端注册 `com.xiaomi.registration`
+  - 统计与广告 `com.miui.analytics`、`com.miui.msa(.global)`、`com.miui.systemAdSolution`
+  - 安全组件 `com.miui.guardprovider`（应用清单枚举/APK 样本采集/查杀报告上传）、`com.miui.securitycenter`（反诈行为记录入库）
+  - 诊断与 AI `com.miui.misightservice`、`com.xiaomi.aicr`、`com.miui.contentcatcher`
+  - 云控与日志 `com.xiaomi.joyose`、`com.miui.bugreport`、`com.miui.daemon`
+- **一键深度优化**：自动安全冻结无界面常驻探针（`com.miui.analytics`、`com.miui.msa`、`com.miui.contentcatcher`、`com.mobiletools.systemhelper`）。
 - **精细化控制模式**：
   - **彻底冻结** (`pm disable-user --user 0`)
   - **权限剥夺与后台限制** (`cmd appops` 剥夺后台自启、常驻唤醒、读取手机状态等权限)
   - **针对智能服务 (`systemAdSolution`) 的免卡顿治理**：保持组件存活避免自带应用开屏卡顿，使用精准域名阻断实现秒跳开屏！
-- **活跃进程监控**：实时探测 `securitycenter`、`guardprovider` 等后台引擎 PID。
+- **活跃进程监控**：实时探测 `securitycenter`、`guardprovider`、`misightservice`、`aicr`、`registration` 等后台引擎 PID。
+
+### 5. 本地采集残留深度清理 (Root 独有能力)
+- 方法级 hook 类工具只能拦"上报"，**清不掉已落地的历史数据**：反诈行为记录（通话/屏幕共享时长等）会永久留存在手机管家本地库 `fraud_detection_data.db`。
+- 隐私守卫用 Root 直达本地：将 `fraud_detection_data.db` 及 `-wal/-shm` 伴生文件**整库备份**到 `/data/adb/privacy_guard/fraud_backup/<时间戳>/` 后删除原文件，可随时手动还原。
+- 逐文件"先备份后删除"，任一文件备份失败立即中止，不产生半清状态；只匹配实证库前缀，不误伤骚扰拦截等其他数据库。
 
 ---
 
