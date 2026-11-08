@@ -67,7 +67,7 @@ class ProtectionForegroundService : Service() {
                     if (config?.masterEnabled == true && config.logEnabled && SuShellExecutor.isRootGranted()) {
                         val count = app.interceptLogRepository.captureKernelLogs()
                         if (count > 0) {
-                            updateNotification("已捕获 $count 次隐私偷跑尝试", "小米多媒体/广告/反诈上报已被阻断")
+                            updateNotification("已捕获 $count 次隐私偷跑尝试", "检测到外部连接尝试并已阻断")
                         }
                     }
                 } catch (_: Exception) {}

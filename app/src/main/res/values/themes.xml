@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!--
+        Miuix 应用基座主题：跟随系统的浅色/深色由 values-night 变体提供，
+        两个变体均声明透明系统栏，配合 MainActivity#onCreate 的 enableEdgeToEdge()
+        让 Compose 侧（miuix Scaffold / TopAppBar / NavigationBar）接管系统栏避让，
+        消除旧 Theme.Material 深色主题留下的黑色状态栏与原生导航条。
+        系统栏图标亮暗由 enableEdgeToEdge 在运行时按系统深色模式设置，无需在此声明。
+    -->
+    <style name="Theme.PrivacyGuard" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+    </style>
+</resources>

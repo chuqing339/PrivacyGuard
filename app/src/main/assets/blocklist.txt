@@ -1,7 +1,6 @@
-# FJ HostsBlock 屏蔽块表 v1.3
+# PrivacyGuard 屏蔽块表 v2.6
 # 段落 [name] 开头，域名一行一个，# 注释
-# 段落开关在 WebUI 或 /data/adb/FJ_HostsBlock/config 里控制：
-#   SEG_TELEMETRY / SEG_ANTIFRAUD / SEG_RISKGATE / SEG_MIUIAD / SEG_DOH / SEG_ADSDK
+# 段落开关在 App「规则中心」页控制（Room rule_segments 表）
 
 [telemetry]
 # 小米安全中心 多媒体/视频回传（com.miui.securitycenter、com.miui.guardprovider 实测命中）

@@ -9,6 +9,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
+import com.privacyguard.app.BuildConfig
 import com.privacyguard.app.data.preference.GuardConfig
 import top.yukonga.miuix.kmp.basic.Button
 import top.yukonga.miuix.kmp.basic.Card
@@ -124,7 +125,7 @@ fun SettingsScreen(
             Card {
                 ArrowPreference(
                     title = "小米专属 Root 隐私防护",
-                    summary = "版本 v2.6.0 · 基于 Miuix 原生 HyperOS 规范构建"
+                    summary = "版本 v${BuildConfig.VERSION_NAME} · 基于 Miuix 原生 HyperOS 规范构建"
                 )
             }
         }

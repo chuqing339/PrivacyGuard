@@ -46,8 +46,12 @@ object XiaomiPrivacyManager {
         val disabledOut = SuShellExecutor.execute("pm list packages -d --user 0 2>/dev/null").outputText
         val allPkgsOut = SuShellExecutor.execute("pm list packages --user 0 2>/dev/null").outputText
 
+        // 按行精确匹配，避免子串误判（如 com.miui.msa 与 com.miui.msa.global 互不误判）
+        val installedLines = allPkgsOut.split('\n').map { it.trim() }
+        val disabledLines = disabledOut.split('\n').map { it.trim() }
+
         for ((pkg, label, kind) in TARGET_PKGS) {
-            val isInstalled = allPkgsOut.contains("package:$pkg")
+            val isInstalled = installedLines.any { it == "package:$pkg" }
             if (!isInstalled) {
                 result.add(
                     PrivacyScanItem(
@@ -61,7 +65,7 @@ object XiaomiPrivacyManager {
                 continue
             }
 
-            val isDisabled = disabledOut.contains("package:$pkg")
+            val isDisabled = disabledLines.any { it == "package:$pkg" }
             val pids = getPackagePids(pkg)
 
             // 检查是否有 appops 限制标记
@@ -74,8 +78,8 @@ object XiaomiPrivacyManager {
             }
 
             val warning = when (pkg) {
-                "com.miui.systemAdSolution" -> "注意：部分系统自带App开屏会等待该组件返回。建议通过开启本软件的【MIUI广告与追踪】域名阻断，即可秒跳开屏且不卡顿！"
-                "com.mobiletools.systemhelper" -> "运营商静默探针，无界面无前台功能，可放心深度冻结。"
+                "com.miui.systemAdSolution" -> "冻结后部分系统自带应用开屏可能出现短暂卡顿或等待。建议改用本软件的【MIUI广告与追踪】域名阻断，即可秒跳开屏且不卡顿！"
+                "com.mobiletools.systemhelper" -> "运营商定制组件，涉及 OTA 升级与 SIM 卡远程配置下发通道，冻结后运营商侧远程配置功能将失效，可随时在此恢复。"
                 "com.xiaomi.joyose" -> "冻结可解除部分温控限制，但可能影响某些官方游戏插帧功能。"
                 else -> ""
             }
@@ -104,53 +108,84 @@ object XiaomiPrivacyManager {
     /**
      * 切换隐私包状态
      * @param targetState 0: 彻底禁用 (pm disable-user), 1: 恢复启用 (pm enable), 2: 限制模式 (appops)
+     * @return 关键命令（pm / appops）逐条以真实退出码校验，全部成功才返回 true；
+     *         .restricted_ 标记文件跟随真实结果落盘，不因命令批量执行被吞掉失败
      */
     suspend fun setPackageState(pkg: String, targetState: Int): Boolean = withContext(Dispatchers.IO) {
-        val cmds = mutableListOf<String>()
-        cmds.add("mkdir -p /data/adb/privacy_guard")
+        SuShellExecutor.execute("mkdir -p /data/adb/privacy_guard")
 
         when (targetState) {
-            0 -> {
-                // 彻底禁用
-                cmds.add("pm disable-user --user 0 $pkg 2>/dev/null || pm disable $pkg 2>/dev/null")
-                cmds.add("am force-stop $pkg 2>/dev/null")
-                cmds.add("rm -f /data/adb/privacy_guard/.restricted_$pkg 2>/dev/null")
-            }
-            1 -> {
-                // 恢复启用
-                cmds.add("pm enable --user 0 $pkg 2>/dev/null || pm enable $pkg 2>/dev/null")
-                for (op in RESTRICTED_APPOPS) {
-                    cmds.add("cmd appops set $pkg $op allow 2>/dev/null")
-                }
-                cmds.add("rm -f /data/adb/privacy_guard/.restricted_$pkg 2>/dev/null")
-            }
-            2 -> {
-                // 限制模式（保留安装，剥夺权限并冻结后台）
-                cmds.add("pm enable --user 0 $pkg 2>/dev/null || pm enable $pkg 2>/dev/null")
-                for (op in RESTRICTED_APPOPS) {
-                    cmds.add("cmd appops set $pkg $op ignore 2>/dev/null")
-                }
-                cmds.add("am force-stop $pkg 2>/dev/null")
-                cmds.add("touch /data/adb/privacy_guard/.restricted_$pkg")
+            0 -> disablePackage(pkg)
+            1 -> enablePackage(pkg)
+            2 -> restrictPackage(pkg)
+            else -> false
+        }
+    }
+
+    /** 彻底禁用：pm disable-user 失败时回退 pm disable，以退出码为准 */
+    private suspend fun disablePackage(pkg: String): Boolean {
+        val pmRes = SuShellExecutor.execute("pm disable-user --user 0 $pkg 2>/dev/null || pm disable $pkg 2>/dev/null")
+        if (!pmRes.isSuccess) {
+            Log.e(TAG, "pm disable 失败: $pkg (exit=${pmRes.exitCode})")
+            return false
+        }
+        // force-stop 仅为收尾清理，不影响成功判定
+        SuShellExecutor.execute("am force-stop $pkg 2>/dev/null")
+        SuShellExecutor.execute("rm -f /data/adb/privacy_guard/.restricted_$pkg")
+        return true
+    }
+
+    /** 恢复启用：pm enable + 逐条恢复 appops，任一失败即整体失败且不清理标记文件 */
+    private suspend fun enablePackage(pkg: String): Boolean {
+        val pmRes = SuShellExecutor.execute("pm enable --user 0 $pkg 2>/dev/null || pm enable $pkg 2>/dev/null")
+        if (!pmRes.isSuccess) {
+            Log.e(TAG, "pm enable 失败: $pkg (exit=${pmRes.exitCode})")
+            return false
+        }
+        for (op in RESTRICTED_APPOPS) {
+            val opRes = SuShellExecutor.execute("cmd appops set $pkg $op allow")
+            if (!opRes.isSuccess) {
+                Log.e(TAG, "appops allow 失败: $pkg $op (exit=${opRes.exitCode})")
+                return false
             }
         }
+        SuShellExecutor.execute("rm -f /data/adb/privacy_guard/.restricted_$pkg")
+        return true
+    }
 
-        val res = SuShellExecutor.executeLines(cmds)
-        res.isSuccess
+    /** 限制模式：pm enable + 逐条剥夺 appops + 标记文件仅在全部成功后落盘 */
+    private suspend fun restrictPackage(pkg: String): Boolean {
+        val pmRes = SuShellExecutor.execute("pm enable --user 0 $pkg 2>/dev/null || pm enable $pkg 2>/dev/null")
+        if (!pmRes.isSuccess) {
+            Log.e(TAG, "pm enable 失败: $pkg (exit=${pmRes.exitCode})")
+            return false
+        }
+        for (op in RESTRICTED_APPOPS) {
+            val opRes = SuShellExecutor.execute("cmd appops set $pkg $op ignore")
+            if (!opRes.isSuccess) {
+                Log.e(TAG, "appops ignore 失败: $pkg $op (exit=${opRes.exitCode})")
+                return false
+            }
+        }
+        SuShellExecutor.execute("am force-stop $pkg 2>/dev/null")
+        SuShellExecutor.execute("touch /data/adb/privacy_guard/.restricted_$pkg")
+        return true
     }
 
     /**
-     * 扫描系统中正在运行的隐私与上报相关进程
+     * 扫描系统中正在运行的隐私与上报相关进程。
+     * 使用完整包名查询：pidof 以进程名（即包名）匹配，短名（如 "msa"）可能误命中无关进程或漏配。
      */
     suspend fun scanRunningProcs(): List<RunningProcessItem> = withContext(Dispatchers.IO) {
         val items = mutableListOf<RunningProcessItem>()
         val targets = listOf(
-            "securitycenter" to "安全中心数据引擎",
-            "guardprovider" to "病毒扫描与遥测回传",
-            "systemhelper" to "SystemHelper 探针",
-            "systemAdSolution" to "智能服务广告引擎",
-            "analytics" to "小米分析统计",
-            "msa" to "MSA 广告服务"
+            "com.miui.securitycenter" to "安全中心数据引擎",
+            "com.miui.guardprovider" to "病毒扫描与遥测回传",
+            "com.mobiletools.systemhelper" to "SystemHelper 探针",
+            "com.miui.systemAdSolution" to "智能服务广告引擎",
+            "com.miui.analytics" to "小米分析统计",
+            "com.miui.msa" to "MSA 广告服务",
+            "com.miui.msa.global" to "MSA 全球广告服务"
         )
 
         for ((key, label) in targets) {

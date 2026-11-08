@@ -1,5 +1,4 @@
 127.0.0.1 localhost
 ::1 localhost
-# hosts 由 blocklist.txt + extra_hosts 在开机时生成，不要手改这个文件
-# 要改屏蔽域名：改 /data/adb/modules/FJ_HostsBlock/blocklist.txt
-# 或 WebUI 里直接加，或写 /data/adb/FJ_HostsBlock/extra_hosts
+# FJ HostsBlock 引导占位（v2.6 起模块为 PrivacyGuard App 的被动伴随组件）
+# 本文件由 PrivacyGuard App 管理并更新；以上仅是 App 首次运行前开机的兜底内容。

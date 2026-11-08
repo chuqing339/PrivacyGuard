@@ -51,25 +51,50 @@ jobs:
         run: |
           chmod +x gradlew
           if [ ! -f gradle/wrapper/gradle-wrapper.jar ]; then
-            echo "Gradle wrapper jar missing, downloading official wrapper..."
+            echo "Gradle wrapper jar missing, downloading official wrapper (matching gradle-9.3.1)..."
             mkdir -p gradle/wrapper
-            curl -fsSL https://raw.githubusercontent.com/gradle/gradle/v8.11.1/gradle/wrapper/gradle-wrapper.jar -o gradle/wrapper/gradle-wrapper.jar || \
-            curl -fsSL https://services.gradle.org/distributions/gradle-wrapper.jar -o gradle/wrapper/gradle-wrapper.jar
+            curl -fsSL https://raw.githubusercontent.com/gradle/gradle/v9.3.1/gradle/wrapper/gradle-wrapper.jar -o gradle/wrapper/gradle-wrapper.jar
           fi
 
       - name: Build Debug APK
         if: ${{ github.event.inputs.build_type == 'debug' || github.event.inputs.build_type == 'all' || github.event.inputs.build_type == '' }}
         run: ./gradlew assembleDebug --stacktrace
 
+      # 检测 CI 签名 secrets 是否已配置（不落地、不打印 secret 值）。
+      # 未配置时 release 构建回退 debug 签名（Gradle 侧自动处理），仅供测试，不可用于正式发布。
+      # 配置方法：Settings → Secrets and variables → Actions → New repository secret，
+      # 添加 CI_KEYSTORE_BASE64 / CI_KEYSTORE_PASSWORD / CI_KEYSTORE_ALIAS，详见 README「Release 签名与 CI」。
+      - name: Configure Release Signing
+        env:
+          CI_KEYSTORE_BASE64: ${{ secrets.CI_KEYSTORE_BASE64 }}
+          CI_KEYSTORE_PASSWORD: ${{ secrets.CI_KEYSTORE_PASSWORD }}
+          CI_KEYSTORE_ALIAS: ${{ secrets.CI_KEYSTORE_ALIAS }}
+        run: |
+          if [ -n "$CI_KEYSTORE_BASE64" ] && [ -n "$CI_KEYSTORE_PASSWORD" ] && [ -n "$CI_KEYSTORE_ALIAS" ]; then
+            echo "Release signing secrets detected: release APK will be signed with the CI keystore."
+          else
+            echo "::warning::Secrets CI_KEYSTORE_BASE64 / CI_KEYSTORE_PASSWORD / CI_KEYSTORE_ALIAS 未配置，release 将回退 debug 签名（仅限测试，不可覆盖升级正式签名包）。配置方法见 README「Release 签名与 CI」。"
+          fi
+
       - name: Build Release APK
         if: ${{ github.event.inputs.build_type == 'release' || github.event.inputs.build_type == 'all' || github.event.inputs.build_type == '' }}
+        env:
+          CI_KEYSTORE_BASE64: ${{ secrets.CI_KEYSTORE_BASE64 }}
+          CI_KEYSTORE_PASSWORD: ${{ secrets.CI_KEYSTORE_PASSWORD }}
+          CI_KEYSTORE_ALIAS: ${{ secrets.CI_KEYSTORE_ALIAS }}
         run: ./gradlew assembleRelease --stacktrace
 
       - name: Prepare Output Artifacts
         id: prepare_artifacts
         run: |
           mkdir -p artifacts
-          VERSION="v2.6.0"
+          # 从源码提取版本号（app/build.gradle.kts 的 versionName），tag 推送时以 tag 为准
+          VERSION_NAME="$(grep -o 'versionName = "[^"]*"' app/build.gradle.kts | head -n1 | cut -d'"' -f2)"
+          if [ -z "$VERSION_NAME" ]; then
+            echo "::error::Failed to extract versionName from app/build.gradle.kts"
+            exit 1
+          fi
+          VERSION="v${VERSION_NAME}"
           if [[ "${{ github.ref }}" == refs/tags/v* ]]; then
             VERSION="${GITHUB_REF#refs/tags/}"
           fi

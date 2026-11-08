@@ -8,13 +8,16 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.DeleteOutline
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
+import android.widget.Toast
 import com.privacyguard.app.data.local.entity.RuleEntity
 import com.privacyguard.app.data.local.entity.RuleSegmentEntity
 import com.privacyguard.app.data.local.entity.WhiteListEntity
@@ -44,9 +47,10 @@ fun RulesScreen(
     onDeleteWhitelist: (String) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    var selectedTab by remember { mutableIntStateOf(0) }
+    var selectedTab by rememberSaveable { mutableIntStateOf(0) }
     val tabTitles = listOf("规则分段", "自定义拦截", "关键白名单")
     var showAddDialog by remember { mutableStateOf(false) }
+    val context = LocalContext.current
 
     Scaffold(
         topBar = {
@@ -144,12 +148,22 @@ fun RulesScreen(
             title = if (selectedTab == 1) "添加拦截域名" else "添加放行白名单",
             onDismiss = { showAddDialog = false },
             onConfirm = { domain, comment ->
-                if (selectedTab == 1) {
-                    onAddCustomRule(domain, comment)
+                // 添加前基于现有列表数据查重，避免重复添加产生无效规则
+                val duplicated = if (selectedTab == 1) {
+                    customRules.any { it.domain.equals(domain, ignoreCase = true) }
                 } else {
-                    onAddWhitelist(domain, comment)
+                    whitelist.any { it.domain.equals(domain, ignoreCase = true) }
                 }
-                showAddDialog = false
+                if (duplicated) {
+                    Toast.makeText(context, "该域名已存在", Toast.LENGTH_SHORT).show()
+                } else {
+                    if (selectedTab == 1) {
+                        onAddCustomRule(domain, comment)
+                    } else {
+                        onAddWhitelist(domain, comment)
+                    }
+                    showAddDialog = false
+                }
             }
         )
     }

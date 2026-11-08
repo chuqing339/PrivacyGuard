@@ -8,7 +8,6 @@ import com.privacyguard.app.data.model.PkgState
 import com.privacyguard.app.data.model.PrivacyScanItem
 import com.privacyguard.app.data.model.RunningProcessItem
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -24,7 +23,9 @@ class PrivacyRepository(
     private val _runningProcs = MutableStateFlow<List<RunningProcessItem>>(emptyList())
     val runningProcs: StateFlow<List<RunningProcessItem>> = _runningProcs.asStateFlow()
 
-    val handledCount: Flow<Int> = privacyPkgDao.getHandledCount()
+    // 体检得分（0-100）作为独立流暴露，供 App 层统计收集器合并进仪表盘
+    private val _healthScore = MutableStateFlow(100)
+    val healthScore: StateFlow<Int> = _healthScore.asStateFlow()
 
     /**
      * 执行全量体检
@@ -50,7 +51,9 @@ class PrivacyRepository(
         }
         privacyPkgDao.insertOrUpdateAll(entities)
 
-        calculateHealthScore(scanResults)
+        val score = calculateHealthScore(scanResults)
+        _healthScore.value = score
+        return@withContext score
     }
 
     /**

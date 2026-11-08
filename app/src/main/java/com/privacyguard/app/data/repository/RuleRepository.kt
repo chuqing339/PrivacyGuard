@@ -21,10 +21,11 @@ class RuleRepository(
     val totalRuleCount: Flow<Int> = ruleDao.getRuleCount()
 
     /**
-     * 首次或重置时初始化预置规则
+     * 初始化预置规则（保持每次启动调用：
+     * insertSegments / insertRules 均为 IGNORE 策略，同主键已存在即跳过，幂等且不会重置用户已有的分段开关）
      */
     suspend fun initDefaultRulesIfNeeded() = withContext(Dispatchers.IO) {
-        // 1. 初始化分段
+        // 1. 初始化分段（IGNORE：已存在的分段原样保留，isEnabled 不被覆盖）
         val segmentEntities = SegmentType.values().map { seg ->
             RuleSegmentEntity(
                 segmentKey = seg.key,
@@ -72,6 +73,8 @@ class RuleRepository(
             for (line in lines) {
                 val trimmed = line.trim()
                 if (trimmed.isEmpty() || trimmed.startsWith("#")) continue
+                // 跳过 [xxx] 段头（分组标记），避免其被当作伪域名写入白名单
+                if (trimmed.startsWith("[") && trimmed.endsWith("]")) continue
                 wlList.add(
                     WhiteListEntity(
                         domain = trimmed,
@@ -88,16 +91,29 @@ class RuleRepository(
         ruleDao.setSegmentEnabled(segmentKey, isEnabled)
     }
 
-    suspend fun addCustomRule(domain: String, comment: String = "") {
+    /**
+     * 添加自定义拦截规则
+     * @return 是否写入成功；同域名已存在内置规则（isCustom=0）时拒绝，
+     *         避免 insertRule 的 REPLACE 整行顶掉内置规则且删除自定义路径（DELETE WHERE isCustom=1）无法恢复
+     */
+    suspend fun addCustomRule(domain: String, comment: String = ""): Boolean {
+        val trimmed = domain.trim()
+        if (trimmed.isEmpty()) return false
+        val existing = ruleDao.getRuleByDomain(trimmed)
+        if (existing != null && !existing.isCustom) {
+            // 内置规则优先：自定义规则不得顶掉内置规则
+            return false
+        }
         ruleDao.insertRule(
             RuleEntity(
-                domain = domain.trim(),
+                domain = trimmed,
                 segment = SegmentType.CUSTOM.key,
                 comment = comment,
                 isCustom = true,
                 isEnabled = true
             )
         )
+        return true
     }
 
     suspend fun deleteCustomRule(domain: String) {

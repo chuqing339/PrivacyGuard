@@ -38,6 +38,9 @@ interface RuleDao {
     @Query("DELETE FROM block_rules WHERE isCustom = 0")
     suspend fun clearBuiltInRules()
 
+    @Query("SELECT * FROM block_rules WHERE domain = :domain LIMIT 1")
+    suspend fun getRuleByDomain(domain: String): RuleEntity?
+
     @Query("SELECT COUNT(*) FROM block_rules")
     fun getRuleCount(): Flow<Int>
 
@@ -45,7 +48,9 @@ interface RuleDao {
     @Query("SELECT * FROM rule_segments")
     fun getAllSegments(): Flow<List<RuleSegmentEntity>>
 
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    // IGNORE 策略：同主键（segmentKey）已存在则跳过，保留用户对 isEnabled 的开关状态，
+    // 避免每次启动重置分段开关；配合每次启动的 initDefaultRulesIfNeeded 调用天然幂等
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insertSegments(segments: List<RuleSegmentEntity>)
 
     @Query("UPDATE rule_segments SET isEnabled = :enabled WHERE segmentKey = :segmentKey")

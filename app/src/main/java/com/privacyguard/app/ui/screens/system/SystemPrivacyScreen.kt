@@ -17,6 +17,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
 import com.privacyguard.app.data.model.PkgKind
 import com.privacyguard.app.data.model.PkgState
 import com.privacyguard.app.data.model.PrivacyScanItem
@@ -24,6 +25,7 @@ import com.privacyguard.app.data.model.RunningProcessItem
 import com.privacyguard.app.ui.components.HyperCard
 import top.yukonga.miuix.kmp.basic.Button
 import top.yukonga.miuix.kmp.basic.ButtonDefaults
+import top.yukonga.miuix.kmp.basic.Card
 import top.yukonga.miuix.kmp.basic.Icon
 import top.yukonga.miuix.kmp.basic.IconButton
 import top.yukonga.miuix.kmp.basic.Scaffold
@@ -42,6 +44,16 @@ fun SystemPrivacyScreen(
     onTogglePackage: (String, Int) -> Unit,
     modifier: Modifier = Modifier
 ) {
+    // 危险冻结操作二次确认状态
+    var showOptimizeConfirm by remember { mutableStateOf(false) }
+    var pendingFreezeItem by remember { mutableStateOf<PrivacyScanItem?>(null) }
+
+    // 与 PrivacyRepository.oneClickOptimize 的目标筛选口径保持一致
+    val optimizeTargets = scanItems.filter {
+        (it.kind == PkgKind.SAFE || it.packageName == "com.mobiletools.systemhelper") &&
+            it.state == PkgState.ENABLED
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -107,7 +119,7 @@ fun SystemPrivacyScreen(
                     Spacer(modifier = Modifier.height(16.dp))
 
                     Button(
-                        onClick = onOneClickOptimize,
+                        onClick = { showOptimizeConfirm = true },
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(44.dp),
@@ -133,7 +145,8 @@ fun SystemPrivacyScreen(
                     item = item,
                     onStateChange = { targetState ->
                         onTogglePackage(item.packageName, targetState)
-                    }
+                    },
+                    onFreeze = { pendingFreezeItem = it }
                 )
             }
 
@@ -167,12 +180,110 @@ fun SystemPrivacyScreen(
             }
         }
     }
+
+    // 一键深度优化：批量 pm disable-user 冻结前二次确认
+    if (showOptimizeConfirm) {
+        ConfirmDialog(
+            title = "确认一键深度优化",
+            packages = optimizeTargets.map { it.label },
+            warningText = "将对以上启用中的组件执行彻底冻结（pm disable-user），其中运营商探针涉及 OTA 与 SIM 远程配置通道。",
+            onConfirm = {
+                onOneClickOptimize()
+                showOptimizeConfirm = false
+            },
+            onDismiss = { showOptimizeConfirm = false }
+        )
+    }
+
+    // 单项「彻底冻结」（disable 语义）前二次确认；「恢复」与「权限限制」不弹
+    pendingFreezeItem?.let { item ->
+        ConfirmDialog(
+            title = "确认彻底冻结",
+            packages = listOf(item.label),
+            warningText = item.warningText.ifBlank { "冻结期间该组件及其后台上报将完全停止运行。" },
+            onConfirm = {
+                onTogglePackage(item.packageName, 0)
+                pendingFreezeItem = null
+            },
+            onDismiss = { pendingFreezeItem = null }
+        )
+    }
+}
+
+@Composable
+private fun ConfirmDialog(
+    title: String,
+    packages: List<String>,
+    warningText: String,
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    Dialog(onDismissRequest = onDismiss) {
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            insideMargin = PaddingValues(20.dp)
+        ) {
+            Text(title, fontSize = 17.sp, fontWeight = FontWeight.Bold)
+            Spacer(modifier = Modifier.height(12.dp))
+
+            if (packages.isEmpty()) {
+                Text("当前未发现可冻结的启用中组件。", fontSize = 13.sp, color = Color.Gray)
+            } else {
+                Text("受影响组件：", fontSize = 13.sp, fontWeight = FontWeight.Medium)
+                Text(
+                    text = packages.joinToString("\n") { "· $it" },
+                    fontSize = 12.sp,
+                    color = Color.Gray,
+                    lineHeight = 17.sp
+                )
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                text = warningText,
+                fontSize = 12.sp,
+                color = Color(0xFFFF8800),
+                lineHeight = 16.sp
+            )
+            Spacer(modifier = Modifier.height(6.dp))
+            Text(
+                text = "冻结操作可随时回到体检页点击「恢复」撤销，不影响系统数据。",
+                fontSize = 12.sp,
+                color = Color(0xFF00C070),
+                lineHeight = 16.sp
+            )
+
+            Spacer(modifier = Modifier.height(16.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.End,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                TextButton(
+                    text = "取消",
+                    onClick = onDismiss
+                )
+                Spacer(modifier = Modifier.width(12.dp))
+                Button(
+                    onClick = onConfirm,
+                    enabled = packages.isNotEmpty(),
+                    colors = ButtonDefaults.buttonColors(
+                        color = Color(0xFFFF3B30),
+                        contentColor = Color.White
+                    )
+                ) {
+                    Text("确认执行")
+                }
+            }
+        }
+    }
 }
 
 @Composable
 private fun PrivacyPackageCard(
     item: PrivacyScanItem,
-    onStateChange: (Int) -> Unit
+    onStateChange: (Int) -> Unit,
+    onFreeze: (PrivacyScanItem) -> Unit
 ) {
     HyperCard {
         Column(modifier = Modifier.fillMaxWidth()) {
@@ -272,7 +383,7 @@ private fun PrivacyPackageCard(
                 ) {
                     if (item.state != PkgState.DISABLED) {
                         Button(
-                            onClick = { onStateChange(0) },
+                            onClick = { onFreeze(item) },
                             insideMargin = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
                             minHeight = 32.dp,
                             colors = ButtonDefaults.buttonColors(

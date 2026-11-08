@@ -1,6 +1,7 @@
 package com.privacyguard.app
 
 import android.app.Application
+import android.util.Log
 import com.privacyguard.app.data.local.AppDatabase
 import com.privacyguard.app.data.preference.SettingsDataStore
 import com.privacyguard.app.data.repository.InterceptLogRepository
@@ -9,10 +10,15 @@ import com.privacyguard.app.data.repository.ProtectionRepository
 import com.privacyguard.app.data.repository.RuleRepository
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.launch
 
 class PrivacyGuardApp : Application() {
+
+    companion object {
+        private const val TAG = "PrivacyGuardApp"
+    }
 
     lateinit var database: AppDatabase
         private set
@@ -27,7 +33,8 @@ class PrivacyGuardApp : Application() {
     lateinit var interceptLogRepository: InterceptLogRepository
         private set
 
-    private val applicationScope = CoroutineScope(Dispatchers.IO)
+    // SupervisorJob：单个子协程异常不会拖垮整个应用级作用域
+    private val applicationScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     override fun onCreate() {
         super.onCreate()
@@ -40,34 +47,44 @@ class PrivacyGuardApp : Application() {
         ruleRepository = RuleRepository(this, database.ruleDao())
         protectionRepository = ProtectionRepository(this, settingsDataStore, ruleRepository)
         privacyRepository = PrivacyRepository(database.privacyPkgDao())
-        interceptLogRepository = InterceptLogRepository(this, database.interceptLogDao())
+        interceptLogRepository = InterceptLogRepository(this, database.interceptLogDao(), settingsDataStore)
 
-        // 3. 异步预热：载入内置规则、环境检查
+        // 3. 异步预热：载入内置规则、环境检查、隐私体检，各自独立 launch + try/catch，
+        //    任一项失败只记日志，不阻塞其他初始化
         applicationScope.launch {
-            ruleRepository.initDefaultRulesIfNeeded()
-            protectionRepository.checkEnvironment()
-            privacyRepository.performScan()
-
-            // 监听拦截日志与体检分更新到仪表盘
-            launch {
-                interceptLogRepository.totalInterceptCount.collect { total ->
-                    protectionRepository.updateStats(
-                        total = total,
-                        today = protectionRepository.dashboardState.value.todayInterceptCount,
-                        score = protectionRepository.dashboardState.value.privacyScore
-                    )
-                }
+            try {
+                ruleRepository.initDefaultRulesIfNeeded()
+            } catch (e: Exception) {
+                Log.e(TAG, "初始化内置规则失败", e)
             }
-
-            launch {
-                interceptLogRepository.getTodayInterceptCount().collect { today ->
-                    protectionRepository.updateStats(
-                        total = protectionRepository.dashboardState.value.totalInterceptCount,
-                        today = today,
-                        score = protectionRepository.dashboardState.value.privacyScore
-                    )
-                }
+        }
+        applicationScope.launch {
+            try {
+                protectionRepository.checkEnvironment()
+            } catch (e: Exception) {
+                Log.e(TAG, "Root 环境自检失败", e)
             }
+        }
+        applicationScope.launch {
+            try {
+                privacyRepository.performScan()
+            } catch (e: Exception) {
+                Log.e(TAG, "隐私体检初始化失败", e)
+            }
+        }
+
+        // 4. 统计单点收集：累计拦截 / 今日拦截 / 体检分（来源 PrivacyRepository.healthScore，
+        //    由 performScan 更新）合并为一条流，一次性 updateStats。
+        //    替代原先两个收集器各自「读 value→copy→写」互相覆盖丢字段的写法。
+        applicationScope.launch {
+            combine(
+                interceptLogRepository.totalInterceptCount,
+                interceptLogRepository.getTodayInterceptCount(),
+                privacyRepository.healthScore
+            ) { total, today, score -> Triple(total, today, score) }
+                .collect { (total, today, score) ->
+                    protectionRepository.updateStats(total = total, today = today, score = score)
+                }
         }
     }
 }

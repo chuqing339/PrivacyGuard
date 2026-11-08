@@ -1,17 +1,12 @@
 package com.privacyguard.app.ui.components
 
-import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.PowerSettingsNew
-import androidx.compose.material.icons.filled.Security
-import androidx.compose.material.icons.filled.Warning
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -43,12 +38,6 @@ fun ProtectionBanner(
         isNoRoot -> listOf(Color(0xFFD90429), Color(0xFFEF233C))
         else -> listOf(Color(0xFF6C757D), Color(0xFF495057))
     }
-
-    val animatedBg by animateColorAsState(
-        targetValue = gradientColors[0],
-        animationSpec = tween(500),
-        label = "bannerBg"
-    )
 
     Box(
         modifier = modifier

@@ -1,7 +1,7 @@
 id=FJ_HostsBlock
 name=FJ HostsBlock 广告与遥测屏蔽
-version=v2.5
-versionCode=25
+version=v2.6.0
+versionCode=260
 author=浅末年代_
 updateJson=
-description=四层屏蔽：块表生成 hosts + IPv4 硬拦 + IPv6 同步 + DNS 兜底，带实时拦截日志与命中排行。内置 AArch64 busybox，不依赖系统 nslookup。封小米多媒体回传、反诈特征上报、信通院反诈接口、第三方风控网关、联通终端遥测、系统广告（智能服务 Zeus/Mimo），附通用广告 SDK。另附「隐私」页：可一键禁用/限制联通预装采集探针 SystemHelper（卸载自动恢复）。WebUI 两种打开方式：① 浏览器访问 http://127.0.0.1:8686（默认端口，被占用会自动改用其他端口，以 WebUI 页内显示为准）；② KernelSU / APatch / Kitsune Mask 模块页点开，页面右上角有「浏览器打开」按钮。
+description=PrivacyGuard App 的被动伴随模块：仅提供开机 hosts 引导文件（systemless 挂载，内容由 App 运行时更新）。无后台服务、无本地网页服务，防火墙规则 / hosts / 应用冻结全部由 App 管理，模块自身不执行任何规则。

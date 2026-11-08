@@ -120,7 +120,7 @@ PrivacyGuard/
 │   │           ├── components/        # HyperCard、ProtectionBanner、StatGauge
 │   │           ├── navigation/        # 屏幕路由定义
 │   │           └── screens/           # 首页、规则、监控、体检、设置页面
-├── module/                            # 内置配套 Magisk / KernelSU / APatch 模块资源
+├── module/                            # 被动伴随模块：提供开机 hosts 引导，规则由 App 管理
 ├── settings.gradle.kts
 └── build.gradle.kts
 ```
@@ -130,15 +130,36 @@ PrivacyGuard/
 ## 🚀 编译与运行
 
 ### 编译要求
-- Android Studio Ladybug (2024.2.1+) 或更高版本
+- Android Studio（需支持 Android Gradle Plugin 9.1.0）或更高版本
 - JDK 17
-- Android SDK 35 (最低支持 Android 8.0 / API 26)
+- Android SDK 37 (compileSdk；最低运行支持 Android 8.0 / API 26)
 
 ### 编译 APK
 ```bash
 ./gradlew assembleDebug
 # 输出路径: app/build/outputs/apk/debug/app-debug.apk
 ```
+
+### Release 签名与 CI
+
+- 本地执行 `./gradlew assembleRelease` 时，若未设置 `CI_KEYSTORE_*` 环境变量，release 包自动回退 **debug 签名**（仅供本地开发测试，不可用于覆盖安装正式签名版本）。
+- CI（GitHub Actions）启用正式签名的方法：
+  1. 生成正式 keystore，并**务必妥善离线备份**（丢失后将无法以相同签名升级应用）：
+     ```bash
+     keytool -genkeypair -v -keystore release.keystore -alias privacyguard -keyalg RSA -keysize 2048 -validity 10000
+     ```
+  2. 将 keystore 转为 base64 文本：
+     ```bash
+     # Linux
+     base64 -w0 release.keystore
+     # macOS
+     base64 -i release.keystore -o - | tr -d '\n'
+     ```
+  3. 在仓库 **Settings → Secrets and variables → Actions → New repository secret** 中添加三个 secret：
+     - `CI_KEYSTORE_BASE64`：上一步输出的 base64 全文
+     - `CI_KEYSTORE_PASSWORD`：keystore 密码
+     - `CI_KEYSTORE_ALIAS`：密钥别名（如 `privacyguard`）
+  4. 配置完成后，CI 的 release 构建将自动使用该 keystore 签名；未配置时 CI 回退 debug 签名并输出警告。
 
 ---
 
