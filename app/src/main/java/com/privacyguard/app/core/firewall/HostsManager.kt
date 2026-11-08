@@ -87,10 +87,25 @@ object HostsManager {
 
             SuShellExecutor.executeLines(commands)
 
-            // 以标记文件作为「本会话已挂载」的权威判定，而非批次退出码
+            // 以标记文件作为「本会话已挂载」的判定之一，而非批次退出码
             val check = SuShellExecutor.execute("test -f $HOSTS_APPLIED_MARKER && echo APPLIED")
-            val applied = check.outputText.contains("APPLIED")
-            Log.d(TAG, "applyHosts applied=$applied domains=${validDomains.size}")
+            val markerFound = check.outputText.contains("APPLIED")
+
+            // 回读校验：Magisk 模块 magic mount 场景下，App 已通过 cp -f 把最新内容同步到
+            // 模块路径，模块挂载供给的 /system/etc/hosts 实际就是最新内容，hosts 层已生效；
+            // 但 mount namespace 隔离可能让本 App 的 bind mount 失败 → marker 不存在，
+            // 这不代表 hosts 未生效。故以「marker 或回读命中任一」判定生效
+            val sentinel = if (validDomains.isNotEmpty()) {
+                "0.0.0.0 ${validDomains.first()}"
+            } else {
+                "# === PrivacyGuard Auto Generated Rules"
+            }
+            val readBackRes = SuShellExecutor.execute(
+                "grep -qF '$sentinel' /system/etc/hosts 2>/dev/null || grep -qF '$sentinel' /etc/hosts 2>/dev/null"
+            )
+
+            val applied = markerFound || readBackRes.isSuccess
+            Log.d(TAG, "applyHosts result: marker=$markerFound readBack=${readBackRes.isSuccess} applied=$applied domains=${validDomains.size}")
             applied
         } catch (e: Exception) {
             Log.e(TAG, "applyHosts error", e)

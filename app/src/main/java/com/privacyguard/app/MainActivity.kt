@@ -34,17 +34,20 @@ import top.yukonga.miuix.kmp.theme.MiuixTheme
 
 class MainActivity : ComponentActivity() {
 
-    // POST_NOTIFICATIONS 运行时申请（Android 13+）：被拒仅提示，不影响防护功能本身
+    // POST_NOTIFICATIONS 运行时申请（Android 13+）：
+    // - 申请时机改在用户「开启防护」时按需发起（常驻通知才是该权限的真实用途），
+    //   不再每次冷启动弹窗；被拒后不反复纠缠
+    // - startForeground 在缺权限时不抛错，前台服务与开机自启均正常，
+    //   被拒只影响状态栏常驻通知的可见性（HyperOS 上无可见通知的后台更易被省电策略清理，建议授予）
     private val notificationPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) { granted ->
-        if (!granted) {
-            Toast.makeText(
-                applicationContext,
-                "未授予通知权限，前台防护状态提示可能不显示，防护功能不受影响",
-                Toast.LENGTH_LONG
-            ).show()
-        }
+        Toast.makeText(
+            this@MainActivity,
+            if (granted) "已授予通知权限，防护状态将常驻通知栏"
+            else "未授予通知权限：防护功能正常运行，仅状态栏常驻通知不显示",
+            Toast.LENGTH_LONG
+        ).show()
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -53,7 +56,6 @@ class MainActivity : ComponentActivity() {
         // 系统栏图标亮暗由其按系统深色模式自动设置，与 MiuixTheme 默认跟随系统一致。
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
-        requestNotificationPermissionIfNeeded()
 
         val app = application as PrivacyGuardApp
 
@@ -118,6 +120,9 @@ class MainActivity : ComponentActivity() {
                                                 ProtectionForegroundService.stop(this@MainActivity)
                                                 Toast.makeText(this@MainActivity, "隐私防护已停止", Toast.LENGTH_SHORT).show()
                                             } else {
+                                                // 通知权限按需申请：仅在开启防护且未授予时发起，
+                                                // 结果无论授予与否都不阻断下方防护启动序列
+                                                requestNotificationPermissionIfNeeded()
                                                 ProtectionForegroundService.start(this@MainActivity)
                                                 app.settingsDataStore.setMasterEnabled(true)
                                                 val ok = app.protectionRepository.startProtection(guardConfig.copy(masterEnabled = true))
@@ -305,8 +310,30 @@ class MainActivity : ComponentActivity() {
         val selinux = SuShellExecutor.execute("getenforce 2>&1").outputText
         sb.append("SELinux 模式: $selinux\n")
 
-        val hostsBind = SuShellExecutor.execute("mount | grep -E '/system/etc/hosts|/etc/hosts' 2>&1").outputText
-        sb.append("Hosts 挂载: ${if (hostsBind.isNotBlank()) hostsBind else "未挂载 (普通文件写入模式)"}\n")
+        // Hosts 挂载检测：精确匹配挂载点（目标前后各有空格），避免把
+        // /data/adb/modules/xxx/system/etc/hosts 之类的无关路径误判为已挂载；
+        // 原始输出带超长挂载选项串，整段拼接会换行缠绕似乱码，改为逐行提炼可读摘要
+        val hostsMountRaw = SuShellExecutor.execute(
+            "grep -E ' (/system/etc/hosts|/etc/hosts) ' /proc/mounts 2>/dev/null"
+        ).outputText
+
+        // /proc/mounts 实际行格式为 "源 目标 类型 选项..."（空格分隔，无 on/type 字面量），
+        // 故先按 "源 on 目标 类型 (...)" 的 mount 命令风格匹配，不中再按空格分隔三元组兜底
+        val mountLines = hostsMountRaw.lines().mapNotNull { line ->
+            val match = Regex("""(\S+) on (\S+) type (\S+)""").find(line)
+                ?: Regex("""(\S+)\s+(\S+)\s+(\S+)""").find(line)
+                ?: return@mapNotNull null
+            val (source, target, type) = match.destructured
+            "  · $target ($type) ← $source"
+        }
+
+        sb.append(
+            if (mountLines.isEmpty()) {
+                "Hosts 挂载: 未挂载 (普通文件写入模式)\n"
+            } else {
+                (listOf("Hosts 挂载: ${mountLines.size} 个挂载点") + mountLines).joinToString("\n") + "\n"
+            }
+        )
 
         return sb.toString()
     }

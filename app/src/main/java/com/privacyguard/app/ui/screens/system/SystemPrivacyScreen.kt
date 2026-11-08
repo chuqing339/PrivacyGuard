@@ -338,6 +338,44 @@ private fun PrivacyPackageCard(
 ) {
     HyperCard {
         Column(modifier = Modifier.fillMaxWidth()) {
+            // 第一行：标题占满剩余宽度自动换行，状态徽章固定在右侧不再被挤压
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = item.label,
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    modifier = Modifier.weight(1f)
+                )
+
+                Spacer(modifier = Modifier.width(8.dp))
+
+                // 当前状态小徽章
+                val (stateText, stateColor) = when (item.state) {
+                    PkgState.ENABLED -> "运行中" to Color(0xFFFF3B30)
+                    PkgState.DISABLED -> "已冻结" to Color(0xFF00C070)
+                    PkgState.RESTRICTED -> "权限受限" to Color(0xFF0A59F7)
+                    PkgState.ABSENT -> "未预装" to Color(0xFF8A919F)
+                }
+
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(stateColor.copy(alpha = 0.12f))
+                        .padding(horizontal = 8.dp, vertical = 4.dp)
+                ) {
+                    Text(
+                        text = stateText,
+                        color = stateColor,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Medium
+                    )
+                }
+            }
+
+            // 第二行：风险类别标签 + 包名
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically
@@ -368,40 +406,12 @@ private fun PrivacyPackageCard(
 
                 Spacer(modifier = Modifier.width(8.dp))
 
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = item.label,
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.SemiBold
-                    )
-                    Text(
-                        text = item.packageName,
-                        fontSize = 11.sp,
-                        color = Color.Gray
-                    )
-                }
-
-                // 当前状态小徽章
-                val (stateText, stateColor) = when (item.state) {
-                    PkgState.ENABLED -> "运行中" to Color(0xFFFF3B30)
-                    PkgState.DISABLED -> "已冻结" to Color(0xFF00C070)
-                    PkgState.RESTRICTED -> "权限受限" to Color(0xFF0A59F7)
-                    PkgState.ABSENT -> "未预装" to Color.LightGray
-                }
-
-                Box(
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(8.dp))
-                        .background(stateColor.copy(alpha = 0.12f))
-                        .padding(horizontal = 8.dp, vertical = 4.dp)
-                ) {
-                    Text(
-                        text = stateText,
-                        color = stateColor,
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Medium
-                    )
-                }
+                Text(
+                    text = item.packageName,
+                    fontSize = 11.sp,
+                    color = Color.Gray,
+                    modifier = Modifier.weight(1f)
+                )
             }
 
             if (item.description.isNotBlank()) {
@@ -435,14 +445,14 @@ private fun PrivacyPackageCard(
                     if (item.state != PkgState.DISABLED) {
                         Button(
                             onClick = { onFreeze(item) },
-                            insideMargin = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
-                            minHeight = 32.dp,
+                            insideMargin = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
+                            minHeight = 36.dp,
                             colors = ButtonDefaults.buttonColors(
                                 color = Color(0xFFFF3B30).copy(alpha = 0.12f),
                                 contentColor = Color(0xFFFF3B30)
                             )
                         ) {
-                            Text("彻底冻结", fontSize = 12.sp, fontWeight = FontWeight.Medium)
+                            Text("彻底冻结", fontSize = 13.sp, fontWeight = FontWeight.Medium)
                         }
                     }
 
@@ -450,24 +460,30 @@ private fun PrivacyPackageCard(
                         Spacer(modifier = Modifier.width(8.dp))
                         Button(
                             onClick = { onStateChange(2) },
-                            insideMargin = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
-                            minHeight = 32.dp,
+                            insideMargin = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
+                            minHeight = 36.dp,
                             colors = ButtonDefaults.buttonColors(
                                 color = Color(0xFF0A59F7).copy(alpha = 0.12f),
                                 contentColor = Color(0xFF0A59F7)
                             )
                         ) {
-                            Text("权限限制", fontSize = 12.sp, fontWeight = FontWeight.Medium)
+                            Text("权限限制", fontSize = 13.sp, fontWeight = FontWeight.Medium)
                         }
                     }
 
                     if (item.state != PkgState.ENABLED) {
                         Spacer(modifier = Modifier.width(8.dp))
-                        TextButton(
-                            text = "恢复",
+                        Button(
                             onClick = { onStateChange(1) },
-                            minHeight = 32.dp
-                        )
+                            insideMargin = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
+                            minHeight = 36.dp,
+                            colors = ButtonDefaults.buttonColors(
+                                color = Color(0xFF8A919F).copy(alpha = 0.15f),
+                                contentColor = Color(0xFF8A919F)
+                            )
+                        ) {
+                            Text("恢复", fontSize = 13.sp, fontWeight = FontWeight.Medium)
+                        }
                     }
                 }
             }
