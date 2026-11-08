@@ -1,7 +1,7 @@
 package com.privacyguard.app.core.root
 
 import android.util.Log
-import com.github.topjohnwu.libsu.Shell
+import com.topjohnwu.superuser.Shell
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
