@@ -9,8 +9,10 @@ import androidx.core.app.NotificationCompat
 import com.privacyguard.app.MainActivity
 import com.privacyguard.app.PrivacyGuardApp
 import com.privacyguard.app.R
+import com.privacyguard.app.core.root.SuShellExecutor
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.firstOrNull
 
 class ProtectionForegroundService : Service() {
 
@@ -58,12 +60,15 @@ class ProtectionForegroundService : Service() {
     private fun startLogCollector() {
         val app = application as PrivacyGuardApp
         logPollingJob = serviceScope.launch {
-            // 定时每 15 秒轮询内核拦截日志
+            // 定时每 15 秒轮询内核拦截日志（需总开关与日志记录开启，且已取得 Root 权限）
             while (isActive) {
                 try {
-                    val count = app.interceptLogRepository.captureKernelLogs()
-                    if (count > 0) {
-                        updateNotification("已捕获 $count 次隐私偷跑尝试", "小米多媒体/广告/反诈上报已被阻断")
+                    val config = app.settingsDataStore.configFlow.firstOrNull()
+                    if (config?.masterEnabled == true && config.logEnabled && SuShellExecutor.isRootGranted()) {
+                        val count = app.interceptLogRepository.captureKernelLogs()
+                        if (count > 0) {
+                            updateNotification("已捕获 $count 次隐私偷跑尝试", "小米多媒体/广告/反诈上报已被阻断")
+                        }
                     }
                 } catch (_: Exception) {}
                 delay(15000)

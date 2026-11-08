@@ -1,11 +1,9 @@
 package com.privacyguard.app.core.root
 
 import android.util.Log
+import com.github.topjohnwu.libsu.Shell
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import java.io.BufferedReader
-import java.io.DataOutputStream
-import java.io.InputStreamReader
 
 data class CommandResult(
     val exitCode: Int,
@@ -20,24 +18,39 @@ object SuShellExecutor {
 
     private const val TAG = "SuShellExecutor"
 
+    init {
+        // 配置全局单例 Root Shell 参数：合并 stderr，默认超时 20 秒
+        Shell.setDefaultBuilder(
+            Shell.Builder.create()
+                .setFlags(Shell.FLAG_REDIRECT_STDERR)
+                .setTimeout(20)
+        )
+    }
+
     /**
      * 检测设备是否已取得有效 ROOT 权限
+     * 使用 libsu 单例 shell 缓存，避免重复触发授权弹窗
      */
     suspend fun checkRoot(): Boolean = withContext(Dispatchers.IO) {
         try {
-            val result = execute("id")
-            result.isSuccess && result.stdout.any { it.contains("uid=0") }
+            if (Shell.isAppGrantedRoot() == true) return@withContext true
+            val shell = Shell.getShell()
+            shell.isRoot
         } catch (e: Exception) {
             Log.e(TAG, "checkRoot failed", e)
             false
         }
     }
 
+    fun isRootGranted(): Boolean = Shell.isAppGrantedRoot() == true
+
     /**
      * 检测 Root 方案类型 (Magisk / KernelSU / APatch / 普通 su)
      */
     suspend fun detectRootFlavor(): String = withContext(Dispatchers.IO) {
         try {
+            if (!checkRoot()) return@withContext "None"
+
             val ksuCheck = execute("test -e /data/adb/ksu && echo KSU")
             if (ksuCheck.outputText.contains("KSU")) return@withContext "KernelSU"
 
@@ -56,63 +69,26 @@ object SuShellExecutor {
     }
 
     /**
-     * 执行单条或复合 shell 命令
+     * 执行单条 shell 命令
      */
-    suspend fun execute(command: String, timeoutMs: Long = 15000): CommandResult = withContext(Dispatchers.IO) {
-        executeLines(listOf(command), timeoutMs)
+    suspend fun execute(command: String): CommandResult = withContext(Dispatchers.IO) {
+        executeLines(listOf(command))
     }
 
     /**
-     * 批量执行多条指令
+     * 批量执行多条指令，全部运行在全局唯一的 Root Shell 会话中，绝不重复启动 su 进程
      */
-    suspend fun executeLines(commands: List<String>, timeoutMs: Long = 20000): CommandResult = withContext(Dispatchers.IO) {
-        var process: Process? = null
-        val stdout = mutableListOf<String>()
-        val stderr = mutableListOf<String>()
-
+    suspend fun executeLines(commands: List<String>): CommandResult = withContext(Dispatchers.IO) {
         try {
-            process = Runtime.getRuntime().exec("su")
-            val os = DataOutputStream(process.outputStream)
-            val isReader = BufferedReader(InputStreamReader(process.inputStream))
-            val esReader = BufferedReader(InputStreamReader(process.errorStream))
-
-            for (cmd in commands) {
-                os.writeBytes(cmd + "\n")
-            }
-            os.writeBytes("exit\n")
-            os.flush()
-
-            val outThread = Thread {
-                try {
-                    var line: String?
-                    while (isReader.readLine().also { line = it } != null) {
-                        line?.let { stdout.add(it) }
-                    }
-                } catch (_: Exception) {}
-            }
-
-            val errThread = Thread {
-                try {
-                    var line: String?
-                    while (esReader.readLine().also { line = it } != null) {
-                        line?.let { stderr.add(it) }
-                    }
-                } catch (_: Exception) {}
-            }
-
-            outThread.start()
-            errThread.start()
-
-            outThread.join(timeoutMs)
-            errThread.join(timeoutMs)
-            val exitCode = process.waitFor()
-
-            CommandResult(exitCode, stdout, stderr)
+            val result = Shell.cmd(*commands.toTypedArray()).exec()
+            CommandResult(
+                exitCode = result.code,
+                stdout = result.out,
+                stderr = result.err
+            )
         } catch (e: Exception) {
             Log.e(TAG, "Command execution error: ${commands.firstOrNull()}", e)
-            CommandResult(-1, stdout, stderr + (e.message ?: "Execution failed"))
-        } finally {
-            process?.destroy()
+            CommandResult(-1, emptyList(), listOf(e.message ?: "Execution failed"))
         }
     }
 }

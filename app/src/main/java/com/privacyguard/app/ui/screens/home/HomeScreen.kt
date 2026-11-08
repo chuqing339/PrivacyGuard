@@ -155,12 +155,13 @@ fun HomeScreen(
 
             // 5. 快速操作按钮
             Button(
-                text = "一键刷新域名解析与 IP 规则库",
                 onClick = onRefreshRules,
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(48.dp)
-            )
+            ) {
+                Text("一键刷新域名解析与 IP 规则库")
+            }
 
             Spacer(modifier = Modifier.height(16.dp))
         }

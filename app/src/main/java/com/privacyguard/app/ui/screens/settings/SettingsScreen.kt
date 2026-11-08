@@ -99,8 +99,8 @@ fun SettingsScreen(
                 SwitchPreference(
                     title = "内核拦截日志采集",
                     summary = "通过 iptables -j LOG 实时监听阻断事件",
-                    checked = guardConfig.kernelLogCapture,
-                    onCheckedChange = { onUpdateConfig(guardConfig.copy(kernelLogCapture = it)) }
+                    checked = guardConfig.logEnabled,
+                    onCheckedChange = { onUpdateConfig(guardConfig.copy(logEnabled = it)) }
                 )
             }
 
@@ -151,10 +151,11 @@ fun SettingsScreen(
                     )
                     Spacer(modifier = Modifier.height(16.dp))
                     Button(
-                        text = "关闭",
                         onClick = { showDiagDialog = false },
                         modifier = Modifier.fillMaxWidth()
-                    )
+                    ) {
+                        Text("关闭")
+                    }
                 }
             }
         }

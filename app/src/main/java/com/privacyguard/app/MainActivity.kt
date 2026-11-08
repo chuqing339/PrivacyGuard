@@ -65,12 +65,7 @@ class MainActivity : ComponentActivity() {
                                 NavigationBarItem(
                                     selected = currentScreen == screen,
                                     onClick = { currentScreen = screen },
-                                    icon = {
-                                        Icon(
-                                            imageVector = screen.icon,
-                                            contentDescription = screen.title
-                                        )
-                                    },
+                                    icon = screen.icon,
                                     label = screen.title
                                 )
                             }
