@@ -1,16 +1,23 @@
 package com.privacyguard.app.ui.screens.rules
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.DeleteOutline
+import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -28,12 +35,15 @@ import top.yukonga.miuix.kmp.basic.Card
 import top.yukonga.miuix.kmp.basic.Icon
 import top.yukonga.miuix.kmp.basic.IconButton
 import top.yukonga.miuix.kmp.basic.Scaffold
+import top.yukonga.miuix.kmp.basic.SmallTopAppBar
 import top.yukonga.miuix.kmp.basic.Switch
 import top.yukonga.miuix.kmp.basic.TabRow
 import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.basic.TextButton
 import top.yukonga.miuix.kmp.basic.TextField
-import top.yukonga.miuix.kmp.basic.TopAppBar
+
+// 内置白名单四大分类
+private val BUILTIN_CATEGORIES = listOf("谷歌", "小米", "GitHub", "LSPosed")
 
 @Composable
 fun RulesScreen(
@@ -54,16 +64,7 @@ fun RulesScreen(
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = "规则与块表",
-                actions = {
-                    if (selectedTab != 0) {
-                        IconButton(onClick = { showAddDialog = true }) {
-                            Icon(Icons.Default.Add, contentDescription = "添加")
-                        }
-                    }
-                }
-            )
+            SmallTopAppBar(title = "规则与块表")
         }
     ) { innerPadding ->
         Column(
@@ -71,14 +72,27 @@ fun RulesScreen(
                 .fillMaxSize()
                 .padding(innerPadding)
         ) {
-            TabRow(
-                tabs = tabTitles,
-                selectedTabIndex = selectedTab,
-                onTabSelected = { selectedTab = it },
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
-            )
-
-            Spacer(modifier = Modifier.height(4.dp))
+            // 标签栏 + 条件添加按钮同行，贴合顶部
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(start = 16.dp, end = 8.dp, top = 2.dp, bottom = 4.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                TabRow(
+                    tabs = tabTitles,
+                    selectedTabIndex = selectedTab,
+                    onTabSelected = { selectedTab = it },
+                    modifier = Modifier.weight(1f)
+                )
+                if (selectedTab != 0) {
+                    IconButton(onClick = { showAddDialog = true }) {
+                        Icon(Icons.Default.Add, contentDescription = "添加", tint = Color(0xFF0A59F7))
+                    }
+                } else {
+                    Spacer(modifier = Modifier.width(48.dp))
+                }
+            }
 
             when (selectedTab) {
                 0 -> {
@@ -119,43 +133,11 @@ fun RulesScreen(
                     }
                 }
                 2 -> {
-                    // 白名单列表：内置条目按分类说明分组，自定义条目归入「自定义放行」
-                    if (whitelist.isEmpty()) {
-                        EmptyListHint("暂无白名单域名")
-                    } else {
-                        val groups = whitelist
-                            .groupBy {
-                                if (it.isBuiltIn) it.comment.ifBlank { "内置保护" } else "自定义放行"
-                            }
-                            .entries
-                            .sortedWith(compareBy({ it.key != "自定义放行" }, { it.key }))
-                        LazyColumn(
-                            modifier = Modifier.fillMaxSize(),
-                            contentPadding = PaddingValues(16.dp),
-                            verticalArrangement = Arrangement.spacedBy(10.dp)
-                        ) {
-                            groups.forEach { (groupName, members) ->
-                                item(key = "header_$groupName") {
-                                    Text(
-                                        text = "$groupName · ${members.size} 条",
-                                        fontSize = 13.sp,
-                                        fontWeight = FontWeight.SemiBold,
-                                        color = Color(0xFF66707A),
-                                        modifier = Modifier.padding(top = 4.dp)
-                                    )
-                                }
-                                items(members, key = { it.domain }) { wl ->
-                                    RuleItemRow(
-                                        domain = wl.domain,
-                                        comment = wl.comment,
-                                        showComment = !wl.isBuiltIn,
-                                        canDelete = !wl.isBuiltIn,
-                                        onDelete = { onDeleteWhitelist(wl.domain) }
-                                    )
-                                }
-                            }
-                        }
-                    }
+                    // 白名单：内置按四大类（谷歌/小米/GitHub/LSPosed）折叠展示，自定义独立展示
+                    WhitelistTab(
+                        whitelist = whitelist,
+                        onDeleteWhitelist = onDeleteWhitelist
+                    )
                 }
             }
         }
@@ -166,7 +148,6 @@ fun RulesScreen(
             title = if (selectedTab == 1) "添加拦截域名" else "添加放行白名单",
             onDismiss = { showAddDialog = false },
             onConfirm = { domain, comment ->
-                // 添加前基于现有列表数据查重，避免重复添加产生无效规则
                 val duplicated = if (selectedTab == 1) {
                     customRules.any { it.domain.equals(domain, ignoreCase = true) }
                 } else {
@@ -184,6 +165,223 @@ fun RulesScreen(
                 }
             }
         )
+    }
+}
+
+/** 分类算法：精准归类至 谷歌/小米/GitHub/LSPosed */
+private fun classifyWhitelistGroup(item: WhiteListEntity): String {
+    val d = item.domain.lowercase()
+    val c = item.comment.lowercase()
+    return when {
+        d.contains("google") || c.contains("谷歌") -> "谷歌"
+        d.contains("xiaomi") || d.contains("miui") || c.contains("小米") -> "小米"
+        d.contains("lsposed") || d.contains("ghproxy") || d.contains("gh-proxy") || d.contains("jsdelivr") || (c.contains("lsposed") && !d.contains("github")) -> "LSPosed"
+        d.contains("github") || c.contains("github") -> "GitHub"
+        else -> "其他"
+    }
+}
+
+/** 白名单 Tab：内置条目按分组折叠卡片，自定义可删除列表 */
+@Composable
+private fun WhitelistTab(
+    whitelist: List<WhiteListEntity>,
+    onDeleteWhitelist: (String) -> Unit
+) {
+    if (whitelist.isEmpty()) {
+        EmptyListHint("暂无白名单域名")
+        return
+    }
+
+    // 分离内置与自定义
+    val builtinItems = whitelist.filter { it.isBuiltIn }
+    val customItems = whitelist.filter { !it.isBuiltIn }
+
+    // 按四大预设分类归纳内置规则
+    val categorizedMap = remember(builtinItems) {
+        val map = BUILTIN_CATEGORIES.associateWith { mutableListOf<WhiteListEntity>() }.toMutableMap()
+        val others = mutableListOf<WhiteListEntity>()
+
+        for (item in builtinItems) {
+            val cat = classifyWhitelistGroup(item)
+            if (map.containsKey(cat)) {
+                map[cat]?.add(item)
+            } else {
+                others.add(item)
+            }
+        }
+        val list = BUILTIN_CATEGORIES.map { cat -> cat to (map[cat] ?: emptyList()) }.toMutableList()
+        if (others.isNotEmpty()) {
+            list.add("其他放行" to others)
+        }
+        list
+    }
+
+    LazyColumn(
+        modifier = Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(16.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp)
+    ) {
+        // 内置白名单四大折叠分组
+        items(categorizedMap, key = { "group_${it.first}" }) { (groupName, members) ->
+            CollapsibleWhitelistGroup(groupName = groupName, members = members)
+        }
+
+        // 自定义条目（可删除）
+        if (customItems.isNotEmpty()) {
+            item(key = "header_custom") {
+                Text(
+                    text = "自定义放行 · ${customItems.size} 条",
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = Color(0xFF66707A),
+                    modifier = Modifier.padding(top = 6.dp)
+                )
+            }
+            items(customItems, key = { it.domain }) { wl ->
+                RuleItemRow(
+                    domain = wl.domain,
+                    comment = wl.comment,
+                    showComment = true,
+                    canDelete = true,
+                    onDelete = { onDeleteWhitelist(wl.domain) }
+                )
+            }
+        }
+    }
+}
+
+/** 可折叠的白名单分组卡片，默认收纳，点击展开 */
+@Composable
+private fun CollapsibleWhitelistGroup(
+    groupName: String,
+    members: List<WhiteListEntity>
+) {
+    var expanded by rememberSaveable(groupName) { mutableStateOf(false) }
+    val arrowRotation by animateFloatAsState(targetValue = if (expanded) 180f else 0f, label = "arrow")
+
+    HyperCard {
+        Column(modifier = Modifier.fillMaxWidth()) {
+            // 分组头部：点击展开/收起
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { expanded = !expanded }
+                    .padding(vertical = 4.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                // 分组徽标色块
+                val (groupColor, iconDesc) = when (groupName) {
+                    "谷歌" -> Color(0xFF4285F4) to "Google 服务白名单"
+                    "小米" -> Color(0xFFFF6900) to "小米核心服务白名单"
+                    "GitHub" -> Color(0xFF24292E) to "GitHub 规则白名单"
+                    "LSPosed" -> Color(0xFF7B61FF) to "LSPosed 模块及镜像"
+                    else -> Color(0xFF8A919F) to "系统放行白名单"
+                }
+
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(6.dp))
+                        .background(groupColor.copy(alpha = 0.12f))
+                        .padding(horizontal = 8.dp, vertical = 3.dp)
+                ) {
+                    Text(
+                        text = groupName,
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = groupColor
+                    )
+                }
+
+                Spacer(modifier = Modifier.width(8.dp))
+
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = "${members.size} 条规则",
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = Color(0xFF1A1A1A)
+                    )
+                    Text(
+                        text = iconDesc,
+                        fontSize = 11.sp,
+                        color = Color.Gray
+                    )
+                }
+
+                Icon(
+                    imageVector = Icons.Default.ExpandMore,
+                    contentDescription = if (expanded) "收起" else "展开",
+                    tint = Color.Gray,
+                    modifier = Modifier
+                        .rotate(arrowRotation)
+                        .size(20.dp)
+                )
+            }
+
+            // 展开后的域名列表
+            AnimatedVisibility(visible = expanded) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 8.dp),
+                    verticalArrangement = Arrangement.spacedBy(0.dp)
+                ) {
+                    if (members.isEmpty()) {
+                        Text(
+                            text = "该分类下暂无规则",
+                            fontSize = 12.sp,
+                            color = Color.Gray,
+                            modifier = Modifier.padding(vertical = 8.dp)
+                        )
+                    } else {
+                        members.forEachIndexed { index, wl ->
+                            if (index > 0) {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(1.dp)
+                                        .background(Color.LightGray.copy(alpha = 0.2f))
+                                )
+                            }
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 7.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = wl.domain,
+                                        fontSize = 13.sp,
+                                        fontWeight = FontWeight.Medium
+                                    )
+                                    if (wl.comment.isNotBlank() && wl.comment != "内置保护") {
+                                        Text(
+                                            text = wl.comment,
+                                            fontSize = 11.sp,
+                                            color = Color.Gray
+                                        )
+                                    }
+                                }
+                                Box(
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(4.dp))
+                                        .background(Color(0xFF00C070).copy(alpha = 0.12f))
+                                        .padding(horizontal = 6.dp, vertical = 2.dp)
+                                ) {
+                                    Text(
+                                        text = "放行",
+                                        fontSize = 10.sp,
+                                        color = Color(0xFF00C070),
+                                        fontWeight = FontWeight.Medium
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
     }
 }
 

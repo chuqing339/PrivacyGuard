@@ -7,8 +7,19 @@
 # 格式：一行一个域名；# 加注释；分节用 [名字] 行（会被忽略）。
 # 想保护自己的域名，直接在下面追加一行即可。
 
+[lsposed]
+# LSPosed 模块更新与镜像加速
+ghproxy.com
+mirror.ghproxy.com
+gh-proxy.com
+jsdelivr.net
+fastly.jsdelivr.net
+cdn.jsdelivr.net
+lsposed.org
+repo.lsposed.org
+
 [github]
-# LSPosed 在线模块更新、GitHub 下载/接口、镜像加速
+# GitHub 官方下载与接口
 github.com
 api.github.com
 codeload.github.com
@@ -20,12 +31,6 @@ github-releases.githubusercontent.com
 githubassets.com
 avatars.githubusercontent.com
 github.io
-ghproxy.com
-mirror.ghproxy.com
-gh-proxy.com
-jsdelivr.net
-fastly.jsdelivr.net
-cdn.jsdelivr.net
 
 [xiaomi]
 # 小米账号与系统更新（避免更新/登录因 IP 连带误伤失败）

@@ -20,12 +20,12 @@ object XiaomiPrivacyManager {
     // 针对小米重点隐私监控服务的预设元数据
     // 覆盖清单与 Hyper 隐私卫士 0.7.8 逆向分析中的 8 个目标包对齐（另保留本项目独有的 joyose/bugreport/daemon）
     private val TARGET_PKGS = listOf(
+        Triple("com.miui.securitycenter", "安全中心数据引擎（手机管家）", PkgKind.RISK),
+        Triple("com.miui.guardprovider", "病毒扫描与遥测回传（GuardProvider）", PkgKind.OPT),
         Triple("com.mobiletools.systemhelper", "SystemHelper（运营商定制遥测探针）", PkgKind.OPT),
         Triple("com.miui.analytics", "小米统计服务（静默搜集用户行为与App时长）", PkgKind.SAFE),
         Triple("com.miui.msa", "MSA 广告标识服务（个性化广告画像与追踪）", PkgKind.SAFE),
         Triple("com.miui.msa.global", "MSA 全球广告服务", PkgKind.SAFE),
-        Triple("com.miui.guardprovider", "GuardProvider（病毒扫描引擎兼遥测宿主）", PkgKind.OPT),
-        Triple("com.miui.securitycenter", "手机管家（反诈行为记录入库宿主）", PkgKind.RISK),
         Triple("com.miui.misightservice", "MiSight（设备诊断日志后台上传）", PkgKind.OPT),
         Triple("com.xiaomi.aicr", "AICR（AI 组件行为统计与风控遥测）", PkgKind.OPT),
         Triple("com.xiaomi.registration", "电信终端注册（CTEI 上报）", PkgKind.OPT),

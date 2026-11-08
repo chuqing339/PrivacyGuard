@@ -111,7 +111,7 @@ class InterceptLogRepository(
 
         if (newLogs.isNotEmpty()) {
             interceptLogDao.insertAll(newLogs)
-            interceptLogDao.trimOldLogs(2000)
+            interceptLogDao.trimOldLogs(500)
         }
         if (maxSeenTs > watermark) {
             settingsDataStore.setDmesgWatermark(maxSeenTs)
@@ -121,6 +121,10 @@ class InterceptLogRepository(
 
     suspend fun clearLogs() = withContext(Dispatchers.IO) {
         interceptLogDao.clearAll()
+    }
+
+    suspend fun deleteAppLogs(packageName: String, label: String) = withContext(Dispatchers.IO) {
+        interceptLogDao.deleteByPackageOrLabel(packageName, label)
     }
 
     private fun parseDmesgLine(

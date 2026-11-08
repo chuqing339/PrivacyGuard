@@ -62,6 +62,9 @@ interface InterceptLogDao {
     @Query("DELETE FROM intercept_logs")
     suspend fun clearAll()
 
+    @Query("DELETE FROM intercept_logs WHERE packageName = :packageName OR appLabel = :label")
+    suspend fun deleteByPackageOrLabel(packageName: String, label: String)
+
     @Query("DELETE FROM intercept_logs WHERE id NOT IN (SELECT id FROM intercept_logs ORDER BY timestamp DESC LIMIT :maxKeep)")
-    suspend fun trimOldLogs(maxKeep: Int = 2000)
+    suspend fun trimOldLogs(maxKeep: Int = 500)
 }

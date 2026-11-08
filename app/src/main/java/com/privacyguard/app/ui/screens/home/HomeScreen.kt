@@ -7,7 +7,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -26,8 +25,8 @@ import top.yukonga.miuix.kmp.basic.Button
 import top.yukonga.miuix.kmp.basic.Icon
 import top.yukonga.miuix.kmp.basic.Scaffold
 import top.yukonga.miuix.kmp.basic.SmallTitle
+import top.yukonga.miuix.kmp.basic.SmallTopAppBar
 import top.yukonga.miuix.kmp.basic.Text
-import top.yukonga.miuix.kmp.basic.TopAppBar
 
 @Composable
 fun HomeScreen(
@@ -40,7 +39,7 @@ fun HomeScreen(
 ) {
     Scaffold(
         topBar = {
-            TopAppBar(
+            SmallTopAppBar(
                 title = "隐私守卫"
             )
         }
@@ -66,55 +65,6 @@ fun HomeScreen(
                 todayIntercept = dashboardState.todayInterceptCount,
                 activeRules = dashboardState.layerStatus.activeRuleCount
             )
-
-            // 3. 小米专属隐私健康体检卡片
-            HyperCard(
-                onClick = onNavigateToSystem
-            ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .size(48.dp)
-                            .clip(CircleShape)
-                            .background(
-                                if (dashboardState.privacyScore >= 80) Color(0xFFE8F5E9) else Color(0xFFFFEBEE)
-                            ),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = "${dashboardState.privacyScore}",
-                            color = if (dashboardState.privacyScore >= 80) Color(0xFF00C070) else Color(0xFFFF3B30),
-                            fontSize = 18.sp,
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
-
-                    Spacer(modifier = Modifier.width(14.dp))
-
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = "小米系统隐私体检得分",
-                            fontSize = 15.sp,
-                            fontWeight = FontWeight.SemiBold
-                        )
-                        Spacer(modifier = Modifier.height(2.dp))
-                        Text(
-                            text = if (dashboardState.privacyScore >= 80) "小米遥测与广告探针已得到有效遏制" else "发现常驻采集宿主（小米统计/MSA/运营商探针）",
-                            color = Color.Gray,
-                            fontSize = 12.sp
-                        )
-                    }
-
-                    Icon(
-                        imageVector = Icons.Default.ChevronRight,
-                        contentDescription = "查看",
-                        tint = Color.Gray
-                    )
-                }
-            }
 
             // 4. 四层立体防护状态矩阵
             SmallTitle(text = "四层防护架构矩阵")
