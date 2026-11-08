@@ -43,7 +43,10 @@ class GuardTileService : TileService() {
                 ProtectionForegroundService.stop(this@GuardTileService)
             } else {
                 app.settingsDataStore.setMasterEnabled(true)
-                ProtectionForegroundService.start(this@GuardTileService)
+                // 清爽模式（保活通知关闭）不启动前台服务，规则照常应用
+                if (config.keepAliveNotification) {
+                    ProtectionForegroundService.start(this@GuardTileService)
+                }
                 app.protectionRepository.startProtection(config.copy(masterEnabled = true))
             }
             updateTileState()

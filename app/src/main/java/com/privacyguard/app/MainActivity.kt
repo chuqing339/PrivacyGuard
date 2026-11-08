@@ -25,6 +25,8 @@ import com.privacyguard.app.ui.screens.rules.RulesScreen
 import com.privacyguard.app.ui.screens.settings.SettingsScreen
 import com.privacyguard.app.ui.screens.system.SystemPrivacyScreen
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import top.yukonga.miuix.kmp.basic.NavigationBar
@@ -80,6 +82,15 @@ class MainActivity : ComponentActivity() {
 
                 var diagnosticResult by remember { mutableStateOf("") }
 
+                // 拦截日志前台补采循环：清爽模式（无前台服务）下统计的唯一更新入口；
+                // 与前台服务的 15s 轮询并存时幂等（dmesg 水位线去重）
+                LaunchedEffect(Unit) {
+                    while (isActive) {
+                        runCatching { app.interceptLogRepository.captureKernelLogs() }
+                        delay(30_000)
+                    }
+                }
+
                 Scaffold(
                     // imePadding：edge-to-edge 下键盘不再压缩窗口，弹出时整体抬升，
                     // 保证规则页输入框不被键盘遮挡
@@ -123,7 +134,11 @@ class MainActivity : ComponentActivity() {
                                                 // 通知权限按需申请：仅在开启防护且未授予时发起，
                                                 // 结果无论授予与否都不阻断下方防护启动序列
                                                 requestNotificationPermissionIfNeeded()
-                                                ProtectionForegroundService.start(this@MainActivity)
+                                                // 清爽模式（保活通知关闭）不启动前台服务：规则照常应用，
+                                                // 拦截统计由下方的前台补采循环在打开 App 时更新
+                                                if (guardConfig.keepAliveNotification) {
+                                                    ProtectionForegroundService.start(this@MainActivity)
+                                                }
                                                 app.settingsDataStore.setMasterEnabled(true)
                                                 val ok = app.protectionRepository.startProtection(guardConfig.copy(masterEnabled = true))
                                                 if (ok) {
@@ -256,11 +271,18 @@ class MainActivity : ComponentActivity() {
                                             app.settingsDataStore.setDnsGuardEnabled(newConfig.dnsGuardEnabled)
                                             app.settingsDataStore.setWhitelistEnabled(newConfig.whitelistEnabled)
                                             app.settingsDataStore.setBootAutoStart(newConfig.bootAutoStart)
+                                            app.settingsDataStore.setKeepAliveNotification(newConfig.keepAliveNotification)
                                             app.settingsDataStore.setModuleSyncMode(newConfig.moduleSyncMode)
                                             app.settingsDataStore.setLogEnabled(newConfig.logEnabled)
 
                                             if (dashboardState.engineStatus == EngineStatus.RUNNING) {
                                                 app.protectionRepository.startProtection(newConfig)
+                                                // 保活开关切换时同步前台服务：开启补挂通知，关闭进清爽模式
+                                                if (newConfig.keepAliveNotification) {
+                                                    ProtectionForegroundService.start(this@MainActivity)
+                                                } else {
+                                                    ProtectionForegroundService.stop(this@MainActivity)
+                                                }
                                             }
                                         }
                                     },

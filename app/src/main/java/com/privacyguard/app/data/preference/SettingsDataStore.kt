@@ -26,6 +26,9 @@ data class GuardConfig(
     val whitelistEnabled: Boolean = true,
     val logEnabled: Boolean = true,
     val bootAutoStart: Boolean = false,
+    // 后台保活通知（前台服务）：仅影响状态栏徽章与实时日志采集；
+    // 拦截规则本身持久生效，关闭（清爽模式）不影响任何拦截能力
+    val keepAliveNotification: Boolean = true,
     val lastRefreshTime: Long = 0L,
     val moduleSyncMode: Boolean = true // 是否同步将规则生成至 Magisk/KernelSU 模块目录
 )
@@ -41,6 +44,7 @@ class SettingsDataStore(private val context: Context) {
         val WHITELIST_ENABLED = booleanPreferencesKey("whitelist_enabled")
         val LOG_ENABLED = booleanPreferencesKey("log_enabled")
         val BOOT_AUTO_START = booleanPreferencesKey("boot_auto_start")
+        val KEEP_ALIVE_NOTIFICATION = booleanPreferencesKey("keep_alive_notification")
         val LAST_REFRESH_TIME = longPreferencesKey("last_refresh_time")
         val MODULE_SYNC_MODE = booleanPreferencesKey("module_sync_mode")
         // dmesg 非清除式读取的水位线：已处理的最大内核时间戳（开机起算的秒数）
@@ -65,6 +69,7 @@ class SettingsDataStore(private val context: Context) {
                 whitelistEnabled = preferences[PreferencesKeys.WHITELIST_ENABLED] ?: true,
                 logEnabled = preferences[PreferencesKeys.LOG_ENABLED] ?: true,
                 bootAutoStart = preferences[PreferencesKeys.BOOT_AUTO_START] ?: false,
+                keepAliveNotification = preferences[PreferencesKeys.KEEP_ALIVE_NOTIFICATION] ?: true,
                 lastRefreshTime = preferences[PreferencesKeys.LAST_REFRESH_TIME] ?: 0L,
                 moduleSyncMode = preferences[PreferencesKeys.MODULE_SYNC_MODE] ?: true
             )
@@ -100,6 +105,10 @@ class SettingsDataStore(private val context: Context) {
 
     suspend fun setBootAutoStart(enabled: Boolean) {
         context.dataStore.edit { it[PreferencesKeys.BOOT_AUTO_START] = enabled }
+    }
+
+    suspend fun setKeepAliveNotification(enabled: Boolean) {
+        context.dataStore.edit { it[PreferencesKeys.KEEP_ALIVE_NOTIFICATION] = enabled }
     }
 
     suspend fun updateLastRefreshTime(timestamp: Long = System.currentTimeMillis()) {

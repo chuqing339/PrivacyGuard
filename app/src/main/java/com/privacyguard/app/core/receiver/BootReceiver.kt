@@ -30,11 +30,15 @@ class BootReceiver : BroadcastReceiver() {
                 try {
                     val config = app.settingsDataStore.configFlow.first()
                     if (config.bootAutoStart && config.masterEnabled) {
-                        val serviceIntent = Intent(context, ProtectionForegroundService::class.java)
-                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                            context.startForegroundService(serviceIntent)
-                        } else {
-                            context.startService(serviceIntent)
+                        // 清爽模式（保活通知关闭）不启动前台服务，规则照常应用；
+                        // 拦截统计由下次打开 App 时的前台补采循环按水位线补齐
+                        if (config.keepAliveNotification) {
+                            val serviceIntent = Intent(context, ProtectionForegroundService::class.java)
+                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                                context.startForegroundService(serviceIntent)
+                            } else {
+                                context.startService(serviceIntent)
+                            }
                         }
                         app.protectionRepository.startProtection(config)
                     }

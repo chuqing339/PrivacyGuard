@@ -164,6 +164,12 @@ private fun SettingsMainPage(
                     onCheckedChange = { onUpdateConfig(guardConfig.copy(moduleSyncMode = it)) }
                 )
                 SwitchPreference(
+                    title = "后台保活通知",
+                    summary = "常驻通知栏防止服务被清理；关闭为清爽模式——拦截规则照常生效，仅拦截统计在打开 App 时补齐",
+                    checked = guardConfig.keepAliveNotification,
+                    onCheckedChange = { onUpdateConfig(guardConfig.copy(keepAliveNotification = it)) }
+                )
+                SwitchPreference(
                     title = "内核拦截日志采集",
                     summary = "通过 iptables -j LOG 实时监听阻断事件",
                     checked = guardConfig.logEnabled,
