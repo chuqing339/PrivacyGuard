@@ -65,24 +65,46 @@ class RuleRepository(
         } catch (_: Exception) {}
 
         // 3. 从 assets/whitelist.txt 导入关键域名白名单
+        // 格式约定：[xxx] 为段头（进入新段），段内第一条 # 说明行作为该段分类标签；
+        // 文件头部（第一个段头之前）的 # 行为全局说明，不产生任何条目
         try {
             val wlStream = context.assets.open("whitelist.txt")
             val lines = wlStream.bufferedReader().readLines()
             val wlList = mutableListOf<WhiteListEntity>()
+            var inSection = false
+            var sectionLabel = ""
 
             for (line in lines) {
                 val trimmed = line.trim()
-                if (trimmed.isEmpty() || trimmed.startsWith("#")) continue
-                // 跳过 [xxx] 段头（分组标记），避免其被当作伪域名写入白名单
-                if (trimmed.startsWith("[") && trimmed.endsWith("]")) continue
+                if (trimmed.isEmpty()) continue
+
+                // 段头行：进入新段并重置标签，等待该段第一条 # 说明
+                if (trimmed.startsWith("[") && trimmed.endsWith("]")) {
+                    inSection = true
+                    sectionLabel = ""
+                    continue
+                }
+
+                // 注释行：只取段内第一条非空说明作为分类标签；未进段（文件头部）时忽略
+                if (trimmed.startsWith("#")) {
+                    val note = trimmed.trimStart('#').trim()
+                    if (inSection && sectionLabel.isEmpty() && note.isNotEmpty()) {
+                        sectionLabel = note
+                    }
+                    continue
+                }
+
+                // 域名行：备注取所属段的分类标签，段无说明时兜底「内置保护」
                 wlList.add(
                     WhiteListEntity(
                         domain = trimmed,
                         isBuiltIn = true,
-                        comment = "系统核心/常用关键组件白名单"
+                        comment = sectionLabel.ifBlank { "内置保护" }
                     )
                 )
             }
+            // 先清理历史版本误将 [xxx] 段头当伪域名写入的脏数据，再导入新解析结果
+            ruleDao.deletePseudoWhitelistDomains()
             ruleDao.insertWhitelist(wlList)
         } catch (_: Exception) {}
     }

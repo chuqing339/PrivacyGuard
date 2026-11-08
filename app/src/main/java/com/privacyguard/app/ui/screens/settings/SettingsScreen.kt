@@ -147,8 +147,11 @@ fun SettingsScreen(
                     Spacer(modifier = Modifier.height(12.dp))
                     Text(
                         text = diagnosticOutput.ifBlank { "正在检测底层命令与网络链..." },
-                        fontSize = 12.sp,
-                        lineHeight = 16.sp
+                        fontSize = 13.sp,
+                        lineHeight = 20.sp,
+                        modifier = Modifier
+                            .heightIn(max = 420.dp)
+                            .verticalScroll(rememberScrollState())
                     )
                     Spacer(modifier = Modifier.height(16.dp))
                     Button(

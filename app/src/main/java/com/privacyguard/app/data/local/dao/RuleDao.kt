@@ -66,8 +66,16 @@ interface RuleDao {
     @Query("SELECT domain FROM whitelist_rules")
     suspend fun getWhitelistDomains(): List<String>
 
-    @Insert(onConflict = OnConflictStrategy.IGNORE)
+    // REPLACE 策略：内置白名单不可被用户删除/编辑（UI 层 canDelete=!isBuiltIn），
+    // 同 domain（唯一索引）冲突时整行覆盖，使重复导入能升级分类备注而非被 IGNORE 跳过；
+    // 自定义条目走 insertWhitelistItem，不受影响
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertWhitelist(items: List<WhiteListEntity>)
+
+    // 清理历史版本误将 [xxx] 段头当伪域名写入的脏数据
+    // （SQLite LIKE 中 [ 不是通配符，但用 substr 更无歧义）
+    @Query("DELETE FROM whitelist_rules WHERE substr(domain, 1, 1) = '['")
+    suspend fun deletePseudoWhitelistDomains()
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertWhitelistItem(item: WhiteListEntity): Long

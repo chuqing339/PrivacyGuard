@@ -119,22 +119,40 @@ fun RulesScreen(
                     }
                 }
                 2 -> {
-                    // 白名单列表
+                    // 白名单列表：内置条目按分类说明分组，自定义条目归入「自定义放行」
                     if (whitelist.isEmpty()) {
                         EmptyListHint("暂无白名单域名")
                     } else {
+                        val groups = whitelist
+                            .groupBy {
+                                if (it.isBuiltIn) it.comment.ifBlank { "内置保护" } else "自定义放行"
+                            }
+                            .entries
+                            .sortedWith(compareBy({ it.key != "自定义放行" }, { it.key }))
                         LazyColumn(
                             modifier = Modifier.fillMaxSize(),
                             contentPadding = PaddingValues(16.dp),
                             verticalArrangement = Arrangement.spacedBy(10.dp)
                         ) {
-                            items(whitelist, key = { it.domain }) { wl ->
-                                RuleItemRow(
-                                    domain = wl.domain,
-                                    comment = if (wl.isBuiltIn) "内置保护" else wl.comment,
-                                    canDelete = !wl.isBuiltIn,
-                                    onDelete = { onDeleteWhitelist(wl.domain) }
-                                )
+                            groups.forEach { (groupName, members) ->
+                                item(key = "header_$groupName") {
+                                    Text(
+                                        text = "$groupName · ${members.size} 条",
+                                        fontSize = 13.sp,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = Color(0xFF66707A),
+                                        modifier = Modifier.padding(top = 4.dp)
+                                    )
+                                }
+                                items(members, key = { it.domain }) { wl ->
+                                    RuleItemRow(
+                                        domain = wl.domain,
+                                        comment = wl.comment,
+                                        showComment = !wl.isBuiltIn,
+                                        canDelete = !wl.isBuiltIn,
+                                        onDelete = { onDeleteWhitelist(wl.domain) }
+                                    )
+                                }
                             }
                         }
                     }
@@ -207,6 +225,7 @@ private fun RuleItemRow(
     domain: String,
     comment: String,
     canDelete: Boolean = true,
+    showComment: Boolean = true,
     onDelete: () -> Unit
 ) {
     HyperCard {
@@ -216,7 +235,7 @@ private fun RuleItemRow(
         ) {
             Column(modifier = Modifier.weight(1f)) {
                 Text(text = domain, fontSize = 14.sp, fontWeight = FontWeight.Medium)
-                if (comment.isNotBlank()) {
+                if (showComment && comment.isNotBlank()) {
                     Text(text = comment, fontSize = 11.sp, color = Color.Gray)
                 }
             }
