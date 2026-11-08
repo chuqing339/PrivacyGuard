@@ -7,10 +7,9 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
-import androidx.compose.material.icons.outlined.*
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -19,12 +18,15 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.privacyguard.app.data.model.DashboardState
-import com.privacyguard.app.data.model.EngineStatus
 import com.privacyguard.app.data.preference.GuardConfig
 import com.privacyguard.app.ui.components.HyperCard
 import com.privacyguard.app.ui.components.ProtectionBanner
 import com.privacyguard.app.ui.components.StatGauge
+import top.yukonga.miuix.kmp.basic.Button
+import top.yukonga.miuix.kmp.basic.Icon
 import top.yukonga.miuix.kmp.basic.Scaffold
+import top.yukonga.miuix.kmp.basic.SmallTitle
+import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.basic.TopAppBar
 
 @Composable
@@ -115,12 +117,7 @@ fun HomeScreen(
             }
 
             // 4. 四层立体防护状态矩阵
-            Text(
-                text = "四层防护架构矩阵",
-                fontSize = 16.sp,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onSurface
-            )
+            SmallTitle(text = "四层防护架构矩阵")
 
             HyperCard {
                 Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -129,25 +126,25 @@ fun HomeScreen(
                         desc = "底层将遥测/广告/反诈域名映射至 0.0.0.0",
                         isActive = dashboardState.layerStatus.hostsActive && guardConfig.hostsEnabled
                     )
-                    Divider(color = Color.LightGray.copy(alpha = 0.2f))
+                    LayerDivider()
                     LayerItemRow(
                         name = "L2 · IPv4 硬件熔断层",
                         desc = "iptables/ipset 封杀解析出的真实 IP，阻断硬编码直连",
                         isActive = dashboardState.layerStatus.ipv4Active && guardConfig.ipv4Enabled
                     )
-                    Divider(color = Color.LightGray.copy(alpha = 0.2f))
+                    LayerDivider()
                     LayerItemRow(
                         name = "L3 · IPv6 双栈同封",
                         desc = "ip6tables 同步拦截 v6 隧道偷跑，全栈无死角",
                         isActive = dashboardState.layerStatus.ipv6Active && guardConfig.ipv6Enabled
                     )
-                    Divider(color = Color.LightGray.copy(alpha = 0.2f))
+                    LayerDivider()
                     LayerItemRow(
                         name = "L4 · DNS 强制兜底",
                         desc = "封 DoT 853 / mDNS / 公共 DNS，杜绝加密规避",
                         isActive = dashboardState.layerStatus.dnsGuardActive && guardConfig.dnsGuardEnabled
                     )
-                    Divider(color = Color.LightGray.copy(alpha = 0.2f))
+                    LayerDivider()
                     LayerItemRow(
                         name = "白名单 · 核心业务保护",
                         desc = "放行 GitHub、LSPosed 在线更新与小米账号验证",
@@ -158,27 +155,26 @@ fun HomeScreen(
 
             // 5. 快速操作按钮
             Button(
+                text = "一键刷新域名解析与 IP 规则库",
                 onClick = onRefreshRules,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(50.dp),
-                shape = RoundedCornerShape(16.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = Color(0xFF0A59F7)
-                )
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Refresh,
-                    contentDescription = null,
-                    modifier = Modifier.size(18.dp)
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                Text("一键刷新域名解析与 IP 规则库", fontSize = 15.sp)
-            }
+                    .height(48.dp)
+            )
 
             Spacer(modifier = Modifier.height(16.dp))
         }
     }
+}
+
+@Composable
+private fun LayerDivider() {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(1.dp)
+            .background(Color.LightGray.copy(alpha = 0.2f))
+    )
 }
 
 @Composable

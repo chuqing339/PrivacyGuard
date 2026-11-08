@@ -5,7 +5,6 @@ import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.*
-import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -26,6 +25,9 @@ import com.privacyguard.app.ui.screens.system.SystemPrivacyScreen
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import top.yukonga.miuix.kmp.basic.Icon
+import top.yukonga.miuix.kmp.basic.NavigationBar
+import top.yukonga.miuix.kmp.basic.NavigationBarItem
 import top.yukonga.miuix.kmp.basic.Scaffold
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 
@@ -58,10 +60,7 @@ class MainActivity : ComponentActivity() {
 
                 Scaffold(
                     bottomBar = {
-                        NavigationBar(
-                            containerColor = MaterialTheme.colorScheme.surface,
-                            tonalElevation = 8.dp
-                        ) {
+                        NavigationBar {
                             bottomNavItems.forEach { screen ->
                                 NavigationBarItem(
                                     selected = currentScreen == screen,
@@ -72,12 +71,7 @@ class MainActivity : ComponentActivity() {
                                             contentDescription = screen.title
                                         )
                                     },
-                                    label = { Text(screen.title, fontSize = 11.sp) },
-                                    colors = NavigationBarItemDefaults.colors(
-                                        selectedIconColor = Color(0xFF0A59F7),
-                                        selectedTextColor = Color(0xFF0A59F7),
-                                        indicatorColor = Color(0xFF0A59F7).copy(alpha = 0.12f)
-                                    )
+                                    label = screen.title
                                 )
                             }
                         }

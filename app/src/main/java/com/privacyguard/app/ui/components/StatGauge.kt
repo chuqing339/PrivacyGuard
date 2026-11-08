@@ -1,7 +1,6 @@
 package com.privacyguard.app.ui.components
 
 import androidx.compose.foundation.layout.*
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -9,6 +8,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import top.yukonga.miuix.kmp.basic.Text
 
 @Composable
 fun StatGauge(
@@ -51,7 +51,8 @@ private fun StatItemCard(
 ) {
     HyperCard(
         modifier = modifier,
-        cornerRadius = 18.dp
+        cornerRadius = 16.dp,
+        insideMargin = PaddingValues(12.dp)
     ) {
         Column(
             modifier = Modifier.fillMaxWidth(),
@@ -60,14 +61,14 @@ private fun StatItemCard(
             Text(
                 text = value,
                 color = color,
-                fontSize = 22.sp,
+                fontSize = 20.sp,
                 fontWeight = FontWeight.Bold
             )
             Spacer(modifier = Modifier.height(4.dp))
             Text(
                 text = title,
                 color = Color.Gray,
-                fontSize = 12.sp,
+                fontSize = 11.sp,
                 fontWeight = FontWeight.Normal
             )
         }

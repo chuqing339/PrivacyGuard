@@ -10,7 +10,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.PowerSettingsNew
 import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.Warning
-import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
@@ -22,6 +21,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.privacyguard.app.data.model.EngineStatus
+import top.yukonga.miuix.kmp.basic.Icon
+import top.yukonga.miuix.kmp.basic.IconButton
+import top.yukonga.miuix.kmp.basic.InfiniteProgressIndicator
+import top.yukonga.miuix.kmp.basic.Text
 
 @Composable
 fun ProtectionBanner(
@@ -88,7 +91,7 @@ fun ProtectionBanner(
                         .background(Color.White)
                 ) {
                     if (isStarting) {
-                        CircularProgressIndicator(
+                        InfiniteProgressIndicator(
                             modifier = Modifier.size(24.dp),
                             color = Color(0xFF0A59F7),
                             strokeWidth = 3.dp

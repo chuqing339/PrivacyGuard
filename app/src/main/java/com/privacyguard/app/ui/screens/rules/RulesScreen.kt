@@ -1,28 +1,35 @@
 package com.privacyguard.app.ui.screens.rules
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.DeleteOutline
-import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
 import com.privacyguard.app.data.local.entity.RuleEntity
 import com.privacyguard.app.data.local.entity.RuleSegmentEntity
 import com.privacyguard.app.data.local.entity.WhiteListEntity
 import com.privacyguard.app.ui.components.HyperCard
+import top.yukonga.miuix.kmp.basic.Button
+import top.yukonga.miuix.kmp.basic.ButtonDefaults
+import top.yukonga.miuix.kmp.basic.Card
+import top.yukonga.miuix.kmp.basic.Icon
+import top.yukonga.miuix.kmp.basic.IconButton
 import top.yukonga.miuix.kmp.basic.Scaffold
+import top.yukonga.miuix.kmp.basic.Switch
+import top.yukonga.miuix.kmp.basic.TabRow
+import top.yukonga.miuix.kmp.basic.Text
+import top.yukonga.miuix.kmp.basic.TextButton
+import top.yukonga.miuix.kmp.basic.TextField
 import top.yukonga.miuix.kmp.basic.TopAppBar
 
 @Composable
@@ -60,23 +67,14 @@ fun RulesScreen(
                 .fillMaxSize()
                 .padding(innerPadding)
         ) {
-            // Tab 切换
             TabRow(
+                tabs = tabTitles,
                 selectedTabIndex = selectedTab,
-                containerColor = Color.Transparent,
-                contentColor = Color(0xFF0A59F7),
-                modifier = Modifier.padding(horizontal = 16.dp)
-            ) {
-                tabTitles.forEachIndexed { index, title ->
-                    Tab(
-                        selected = selectedTab == index,
-                        onClick = { selectedTab = index },
-                        text = { Text(title, fontSize = 14.sp) }
-                    )
-                }
-            }
+                onTabSelected = { selectedTab = it },
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+            )
 
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(4.dp))
 
             when (selectedTab) {
                 0 -> {
@@ -118,18 +116,22 @@ fun RulesScreen(
                 }
                 2 -> {
                     // 白名单列表
-                    LazyColumn(
-                        modifier = Modifier.fillMaxSize(),
-                        contentPadding = PaddingValues(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(10.dp)
-                    ) {
-                        items(whitelist, key = { it.domain }) { wl ->
-                            RuleItemRow(
-                                domain = wl.domain,
-                                comment = if (wl.isBuiltIn) "内置保护" else wl.comment,
-                                canDelete = !wl.isBuiltIn,
-                                onDelete = { onDeleteWhitelist(wl.domain) }
-                            )
+                    if (whitelist.isEmpty()) {
+                        EmptyListHint("暂无白名单域名")
+                    } else {
+                        LazyColumn(
+                            modifier = Modifier.fillMaxSize(),
+                            contentPadding = PaddingValues(16.dp),
+                            verticalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            items(whitelist, key = { it.domain }) { wl ->
+                                RuleItemRow(
+                                    domain = wl.domain,
+                                    comment = if (wl.isBuiltIn) "内置保护" else wl.comment,
+                                    canDelete = !wl.isBuiltIn,
+                                    onDelete = { onDeleteWhitelist(wl.domain) }
+                                )
+                            }
                         }
                     }
                 }
@@ -180,11 +182,7 @@ private fun SegmentCard(
             Spacer(modifier = Modifier.width(12.dp))
             Switch(
                 checked = segment.isEnabled,
-                onCheckedChange = onCheckedChange,
-                colors = SwitchDefaults.colors(
-                    checkedThumbColor = Color.White,
-                    checkedTrackColor = Color(0xFF0A59F7)
-                )
+                onCheckedChange = onCheckedChange
             )
         }
     }
@@ -240,43 +238,54 @@ private fun AddDomainDialog(
     var domainText by remember { mutableStateOf("") }
     var commentText by remember { mutableStateOf("") }
 
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(title, fontSize = 18.sp, fontWeight = FontWeight.Bold) },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                OutlinedTextField(
-                    value = domainText,
-                    onValueChange = { domainText = it },
-                    label = { Text("域名 (如 tracking.miui.com)") },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth()
-                )
-                OutlinedTextField(
-                    value = commentText,
-                    onValueChange = { commentText = it },
-                    label = { Text("备注说明 (选填)") },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth()
-                )
-            }
-        },
-        confirmButton = {
-            Button(
-                onClick = {
-                    if (domainText.isNotBlank()) {
-                        onConfirm(domainText.trim(), commentText.trim())
-                    }
-                },
-                enabled = domainText.isNotBlank()
+    Dialog(onDismissRequest = onDismiss) {
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            insideMargin = PaddingValues(20.dp)
+        ) {
+            Text(title, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+            Spacer(modifier = Modifier.height(16.dp))
+
+            TextField(
+                value = domainText,
+                onValueChange = { domainText = it },
+                label = "域名 (如 tracking.miui.com)",
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth()
+            )
+            Spacer(modifier = Modifier.height(12.dp))
+
+            TextField(
+                value = commentText,
+                onValueChange = { commentText = it },
+                label = "备注说明 (选填)",
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth()
+            )
+            Spacer(modifier = Modifier.height(20.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.End,
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Text("确定添加")
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text("取消")
+                TextButton(
+                    text = "取消",
+                    onClick = onDismiss
+                )
+                Spacer(modifier = Modifier.width(12.dp))
+                Button(
+                    onClick = {
+                        if (domainText.isNotBlank()) {
+                            onConfirm(domainText.trim(), commentText.trim())
+                        }
+                    },
+                    enabled = domainText.isNotBlank(),
+                    colors = ButtonDefaults.buttonColorsPrimary()
+                ) {
+                    Text("确定添加")
+                }
             }
         }
-    )
+    }
 }

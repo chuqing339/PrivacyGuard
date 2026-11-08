@@ -7,8 +7,8 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
-import androidx.compose.material3.*
+import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Security
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -22,7 +22,14 @@ import com.privacyguard.app.data.model.PkgState
 import com.privacyguard.app.data.model.PrivacyScanItem
 import com.privacyguard.app.data.model.RunningProcessItem
 import com.privacyguard.app.ui.components.HyperCard
+import top.yukonga.miuix.kmp.basic.Button
+import top.yukonga.miuix.kmp.basic.ButtonDefaults
+import top.yukonga.miuix.kmp.basic.Icon
+import top.yukonga.miuix.kmp.basic.IconButton
 import top.yukonga.miuix.kmp.basic.Scaffold
+import top.yukonga.miuix.kmp.basic.SmallTitle
+import top.yukonga.miuix.kmp.basic.Text
+import top.yukonga.miuix.kmp.basic.TextButton
 import top.yukonga.miuix.kmp.basic.TopAppBar
 
 @Composable
@@ -104,9 +111,9 @@ fun SystemPrivacyScreen(
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(44.dp),
-                        shape = RoundedCornerShape(12.dp),
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = Color(0xFF00C070)
+                            color = Color(0xFF00C070),
+                            contentColor = Color.White
                         )
                     ) {
                         Icon(Icons.Default.Security, contentDescription = null, modifier = Modifier.size(18.dp))
@@ -118,12 +125,7 @@ fun SystemPrivacyScreen(
 
             // 2. 小米系统采集宿主组件管理
             item {
-                Text(
-                    text = "系统级采集宿主服务 (${scanItems.size})",
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onSurface
-                )
+                SmallTitle(text = "系统级采集宿主服务 (${scanItems.size})")
             }
 
             items(scanItems, key = { it.packageName }) { item ->
@@ -138,12 +140,7 @@ fun SystemPrivacyScreen(
             // 3. 运行中敏感探测进程
             if (runningProcs.isNotEmpty()) {
                 item {
-                    Text(
-                        text = "正在活跃的采集/安全引擎进程 (${runningProcs.size})",
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
+                    SmallTitle(text = "正在活跃的采集/安全引擎进程 (${runningProcs.size})")
                 }
 
                 items(runningProcs, key = { it.name }) { proc ->
@@ -177,8 +174,6 @@ private fun PrivacyPackageCard(
     item: PrivacyScanItem,
     onStateChange: (Int) -> Unit
 ) {
-    var expanded by remember { mutableStateOf(false) }
-
     HyperCard {
         Column(modifier = Modifier.fillMaxWidth()) {
             Row(
@@ -276,36 +271,41 @@ private fun PrivacyPackageCard(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     if (item.state != PkgState.DISABLED) {
-                        OutlinedButton(
+                        Button(
                             onClick = { onStateChange(0) },
-                            shape = RoundedCornerShape(10.dp),
-                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
-                            modifier = Modifier.height(34.dp)
+                            insideMargin = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
+                            minHeight = 32.dp,
+                            colors = ButtonDefaults.buttonColors(
+                                color = Color(0xFFFF3B30).copy(alpha = 0.12f),
+                                contentColor = Color(0xFFFF3B30)
+                            )
                         ) {
-                            Text("彻底冻结", fontSize = 12.sp, color = Color(0xFFFF3B30))
+                            Text("彻底冻结", fontSize = 12.sp, fontWeight = FontWeight.Medium)
                         }
                     }
 
                     if (item.state != PkgState.RESTRICTED) {
                         Spacer(modifier = Modifier.width(8.dp))
-                        OutlinedButton(
+                        Button(
                             onClick = { onStateChange(2) },
-                            shape = RoundedCornerShape(10.dp),
-                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
-                            modifier = Modifier.height(34.dp)
+                            insideMargin = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
+                            minHeight = 32.dp,
+                            colors = ButtonDefaults.buttonColors(
+                                color = Color(0xFF0A59F7).copy(alpha = 0.12f),
+                                contentColor = Color(0xFF0A59F7)
+                            )
                         ) {
-                            Text("权限限制", fontSize = 12.sp, color = Color(0xFF0A59F7))
+                            Text("权限限制", fontSize = 12.sp, fontWeight = FontWeight.Medium)
                         }
                     }
 
                     if (item.state != PkgState.ENABLED) {
                         Spacer(modifier = Modifier.width(8.dp))
                         TextButton(
+                            text = "恢复",
                             onClick = { onStateChange(1) },
-                            modifier = Modifier.height(34.dp)
-                        ) {
-                            Text("恢复", fontSize = 12.sp)
-                        }
+                            minHeight = 32.dp
+                        )
                     }
                 }
             }
