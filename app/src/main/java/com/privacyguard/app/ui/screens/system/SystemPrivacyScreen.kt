@@ -7,7 +7,6 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Security
 import androidx.compose.runtime.*
@@ -100,12 +99,6 @@ fun SystemPrivacyScreen(
                                 fontSize = 16.sp,
                                 fontWeight = FontWeight.Bold
                             )
-                            Spacer(modifier = Modifier.height(3.dp))
-                            Text(
-                                text = "MIUI/HyperOS 后台常驻探针监控与分析",
-                                fontSize = 12.sp,
-                                color = Color.Gray
-                            )
                         }
 
                         IconButton(onClick = onRescan) {
@@ -131,42 +124,41 @@ fun SystemPrivacyScreen(
                     ) {
                         Icon(Icons.Default.Security, contentDescription = null, modifier = Modifier.size(16.dp))
                         Spacer(modifier = Modifier.width(6.dp))
-                        Text("一键安全冻结无用遥测与广告探针", fontSize = 13.sp)
+                        Text("一键安全冻结采集探针", fontSize = 13.sp)
                     }
                 }
             }
 
-            // 2. 本地采集残留清理
-            item {
-                SmallTitle(text = "本地采集残留清理")
-            }
+            // 2. 反诈记录清理（紧凑单行）
             item {
                 HyperCard {
-                    Column(modifier = Modifier.fillMaxWidth()) {
-                        Text(
-                            text = "反诈行为记录深度清理",
-                            fontSize = 14.sp,
-                            fontWeight = FontWeight.SemiBold
-                        )
-                        Spacer(modifier = Modifier.height(4.dp))
-                        Text(
-                            text = "通话、屏幕共享等记录会留存于手机管家本地数据库（fraud_detection_data.db），仅拦截无法清除历史。本操作整库安全备份后清除原库，可随时还原。",
-                            fontSize = 12.sp,
-                            color = Color.Gray,
-                            lineHeight = 16.sp
-                        )
-                        Spacer(modifier = Modifier.height(10.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "反诈记录深度清理",
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Text(
+                                text = "先整库备份再删除，可随时还原",
+                                fontSize = 12.sp,
+                                color = Color.Gray
+                            )
+                        }
                         Button(
                             onClick = { showResidueConfirm = true },
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(38.dp),
+                            insideMargin = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
+                            minHeight = 36.dp,
                             colors = ButtonDefaults.buttonColors(
-                                color = Color(0xFFFF8800).copy(alpha = 0.12f),
+                                color = Color(0xFFFF8800).copy(alpha = 0.15f),
                                 contentColor = Color(0xFFFF8800)
                             )
                         ) {
-                            Text("备份并清理反诈记录", fontSize = 13.sp, fontWeight = FontWeight.Medium)
+                            Text("清理", fontSize = 13.sp, fontWeight = FontWeight.Medium)
                         }
                     }
                 }
@@ -174,7 +166,7 @@ fun SystemPrivacyScreen(
 
             // 3. 小米系统采集宿主组件管理
             item {
-                SmallTitle(text = "系统级采集宿主服务 (${scanItems.size})")
+                SmallTitle(text = "采集宿主服务 (${scanItems.size})")
             }
 
             items(scanItems, key = { it.packageName }) { item ->
@@ -278,7 +270,7 @@ private fun RunningProcCard(proc: RunningProcessItem) {
 }
 
 /**
- * 隐私组件卡片：精心排版层次，小字提示采用独立背景容器，避免挤压杂乱
+ * 隐私组件卡片：标题 + 状态徽章 / 类别 + 包名 / 底部操作按钮
  */
 @Composable
 private fun PrivacyPackageCard(
@@ -362,47 +354,6 @@ private fun PrivacyPackageCard(
                     color = Color.Gray,
                     modifier = Modifier.weight(1f)
                 )
-            }
-
-            // 功能描述
-            if (item.description.isNotBlank()) {
-                Spacer(modifier = Modifier.height(6.dp))
-                Text(
-                    text = item.description,
-                    fontSize = 12.sp,
-                    color = Color(0xFF666666),
-                    lineHeight = 16.sp
-                )
-            }
-
-            // 警告提示：独立容器块，带图标与背景底色，避免裸露挤在一起
-            if (item.warningText.isNotBlank()) {
-                Spacer(modifier = Modifier.height(6.dp))
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(6.dp))
-                        .background(Color(0xFFFFF7E6))
-                        .padding(horizontal = 8.dp, vertical = 6.dp)
-                ) {
-                    Row(verticalAlignment = Alignment.Top) {
-                        Icon(
-                            imageVector = Icons.Default.Info,
-                            contentDescription = null,
-                            tint = Color(0xFFD46B08),
-                            modifier = Modifier
-                                .size(13.dp)
-                                .padding(top = 1.dp)
-                        )
-                        Spacer(modifier = Modifier.width(5.dp))
-                        Text(
-                            text = item.warningText,
-                            fontSize = 11.sp,
-                            color = Color(0xFFD46B08),
-                            lineHeight = 15.sp
-                        )
-                    }
-                }
             }
 
             // 底部操作按钮组

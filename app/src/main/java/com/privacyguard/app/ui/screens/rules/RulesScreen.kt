@@ -29,6 +29,7 @@ import com.privacyguard.app.data.local.entity.RuleEntity
 import com.privacyguard.app.data.local.entity.RuleSegmentEntity
 import com.privacyguard.app.data.local.entity.WhiteListEntity
 import com.privacyguard.app.ui.components.HyperCard
+import com.privacyguard.app.ui.components.SegmentedTabs
 import top.yukonga.miuix.kmp.basic.Button
 import top.yukonga.miuix.kmp.basic.ButtonDefaults
 import top.yukonga.miuix.kmp.basic.Card
@@ -37,7 +38,6 @@ import top.yukonga.miuix.kmp.basic.IconButton
 import top.yukonga.miuix.kmp.basic.Scaffold
 import top.yukonga.miuix.kmp.basic.SmallTopAppBar
 import top.yukonga.miuix.kmp.basic.Switch
-import top.yukonga.miuix.kmp.basic.TabRow
 import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.basic.TextButton
 import top.yukonga.miuix.kmp.basic.TextField
@@ -58,7 +58,7 @@ fun RulesScreen(
     modifier: Modifier = Modifier
 ) {
     var selectedTab by rememberSaveable { mutableIntStateOf(0) }
-    val tabTitles = listOf("规则分段", "自定义拦截", "关键白名单")
+    val tabTitles = listOf("规则", "自定义", "白名单")
     var showAddDialog by remember { mutableStateOf(false) }
     val context = LocalContext.current
 
@@ -76,10 +76,10 @@ fun RulesScreen(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(start = 16.dp, end = 8.dp, top = 2.dp, bottom = 4.dp),
+                    .padding(horizontal = 16.dp, vertical = 8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                TabRow(
+                SegmentedTabs(
                     tabs = tabTitles,
                     selectedTabIndex = selectedTab,
                     onTabSelected = { selectedTab = it },

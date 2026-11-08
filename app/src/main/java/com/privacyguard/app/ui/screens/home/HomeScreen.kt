@@ -24,7 +24,6 @@ import com.privacyguard.app.ui.components.StatGauge
 import top.yukonga.miuix.kmp.basic.Button
 import top.yukonga.miuix.kmp.basic.Icon
 import top.yukonga.miuix.kmp.basic.Scaffold
-import top.yukonga.miuix.kmp.basic.SmallTitle
 import top.yukonga.miuix.kmp.basic.SmallTopAppBar
 import top.yukonga.miuix.kmp.basic.Text
 
@@ -67,8 +66,6 @@ fun HomeScreen(
             )
 
             // 4. 四层立体防护状态矩阵
-            SmallTitle(text = "四层防护架构矩阵")
-
             HyperCard {
                 Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     LayerItemRow(

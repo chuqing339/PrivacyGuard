@@ -1,16 +1,20 @@
+@file:OptIn(ExperimentalFoundationApi::class)
+
 package com.privacyguard.app.ui.screens.intercept
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.border
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.DeleteOutline
-import androidx.compose.material.icons.filled.DeleteSweep
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -25,13 +29,15 @@ import androidx.compose.ui.unit.sp
 import com.privacyguard.app.data.local.dao.AppInterceptCount
 import com.privacyguard.app.data.local.entity.InterceptLogEntity
 import com.privacyguard.app.ui.components.HyperCard
+import com.privacyguard.app.ui.components.SegmentedTabs
+import top.yukonga.miuix.kmp.basic.Button
+import top.yukonga.miuix.kmp.basic.ButtonDefaults
 import top.yukonga.miuix.kmp.basic.Icon
-import top.yukonga.miuix.kmp.basic.IconButton
 import top.yukonga.miuix.kmp.basic.LinearProgressIndicator
 import top.yukonga.miuix.kmp.basic.Scaffold
 import top.yukonga.miuix.kmp.basic.SmallTopAppBar
-import top.yukonga.miuix.kmp.basic.TabRow
 import top.yukonga.miuix.kmp.basic.Text
+import top.yukonga.miuix.kmp.basic.TextButton
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -44,13 +50,28 @@ private const val MAX_GROUPS = 20
 fun InterceptScreen(
     logs: List<InterceptLogEntity>,
     topApps: List<AppInterceptCount>,
-    onClearLogs: () -> Unit,
     onDeleteAppLogs: (String, String) -> Unit = { _, _ -> },
     modifier: Modifier = Modifier
 ) {
     var selectedTab by rememberSaveable { mutableIntStateOf(0) }
-    val tabTitles = listOf("实时拦截流", "Top 偷跑排行")
+    val tabTitles = listOf("拦截日志", "偷跑排行")
     val dateFormat = remember { SimpleDateFormat("HH:mm:ss", Locale.getDefault()) }
+
+    // 长按分组卡片进入的多选删除模式（仅作用于「拦截日志」页的 App 分组卡片）：
+    // Pair 为 (packageName, appLabel)，packageName 取该组首条日志（可能为空串），
+    // 删除时原样传给 onDeleteAppLogs
+    var selectionMode by remember { mutableStateOf(false) }
+    var selectedGroups by remember { mutableStateOf(setOf<Pair<String, String>>()) }
+    // 长按与选中态下的单击共用：确保已进入选中模式后切换该组选中状态
+    // （未选中时 selectionMode = true 是幂等操作，对应 onLongClick = { selectionMode = true; 切换选中 }）
+    val toggleGroupSelection: (Pair<String, String>) -> Unit = { key ->
+        selectionMode = true
+        selectedGroups = if (key in selectedGroups) selectedGroups - key else selectedGroups + key
+    }
+    val exitSelectionMode: () -> Unit = {
+        selectionMode = false
+        selectedGroups = emptySet()
+    }
 
     Scaffold(
         topBar = {
@@ -62,30 +83,92 @@ fun InterceptScreen(
                 .fillMaxSize()
                 .padding(innerPadding)
         ) {
-            // 标签栏 + 清空按钮同行，靠顶排布
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(start = 16.dp, end = 8.dp, top = 2.dp, bottom = 4.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                TabRow(
-                    tabs = tabTitles,
-                    selectedTabIndex = selectedTab,
-                    onTabSelected = { selectedTab = it },
-                    modifier = Modifier.weight(1f)
-                )
-                IconButton(onClick = onClearLogs) {
-                    Icon(
-                        imageVector = Icons.Default.DeleteSweep,
-                        contentDescription = "清空记录",
-                        tint = Color.Gray
-                    )
-                }
-            }
+            // 顶部一行两个 tab（HyperOS 分段控件风格）
+            SegmentedTabs(
+                tabs = tabTitles,
+                selectedTabIndex = selectedTab,
+                onTabSelected = { selectedTab = it },
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+            )
 
             when (selectedTab) {
                 0 -> {
+                    // 按 app 分组（最多 MAX_GROUPS 组）；提升到分支顶部，供下方操作栏与列表共用
+                    val grouped: List<Pair<String, List<InterceptLogEntity>>> = remember(logs) {
+                        logs.groupBy { log ->
+                            log.appLabel.ifBlank { log.packageName.ifBlank { "系统底层" } }
+                        }
+                            .entries
+                            .sortedByDescending { it.value.first().timestamp }
+                            .take(MAX_GROUPS)
+                            .map { (k, v) -> k to v }
+                    }
+                    // 全集：分组名 + 该组首条日志的 packageName（与卡片选中键保持一致）
+                    val allGroupKeys: Set<Pair<String, String>> = remember(grouped) {
+                        grouped.map { (label, groupLogs) ->
+                            (groupLogs.firstOrNull()?.packageName ?: "") to label
+                        }.toSet()
+                    }
+
+                    // 多选操作栏：取消 / 全选 / 反选 / 删除所选
+                    AnimatedVisibility(visible = selectionMode) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp, vertical = 4.dp),
+                            horizontalArrangement = Arrangement.spacedBy(10.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            TextButton(
+                                text = "取消",
+                                onClick = exitSelectionMode
+                            )
+                            Button(
+                                onClick = { selectedGroups = allGroupKeys },
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .height(40.dp),
+                                insideMargin = PaddingValues(horizontal = 8.dp),
+                                colors = ButtonDefaults.buttonColors(
+                                    color = Color(0xFF8A919F).copy(alpha = 0.15f),
+                                    contentColor = Color(0xFF8A919F)
+                                )
+                            ) {
+                                Text("全选", fontSize = 13.sp, fontWeight = FontWeight.Medium, maxLines = 1)
+                            }
+                            Button(
+                                onClick = { selectedGroups = allGroupKeys - selectedGroups },
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .height(40.dp),
+                                insideMargin = PaddingValues(horizontal = 8.dp),
+                                colors = ButtonDefaults.buttonColors(
+                                    color = Color(0xFF8A919F).copy(alpha = 0.15f),
+                                    contentColor = Color(0xFF8A919F)
+                                )
+                            ) {
+                                Text("反选", fontSize = 13.sp, fontWeight = FontWeight.Medium, maxLines = 1)
+                            }
+                            Button(
+                                onClick = {
+                                    selectedGroups.forEach { (pkg, label) -> onDeleteAppLogs(pkg, label) }
+                                    exitSelectionMode()
+                                },
+                                enabled = selectedGroups.isNotEmpty(),
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .height(40.dp),
+                                insideMargin = PaddingValues(horizontal = 8.dp),
+                                colors = ButtonDefaults.buttonColors(
+                                    color = Color(0xFFFF3B30).copy(alpha = 0.12f),
+                                    contentColor = Color(0xFFFF3B30)
+                                )
+                            ) {
+                                Text("删除所选", fontSize = 13.sp, fontWeight = FontWeight.Medium, maxLines = 1)
+                            }
+                        }
+                    }
+
                     if (logs.isEmpty()) {
                         Box(
                             modifier = Modifier.fillMaxSize(),
@@ -94,31 +177,20 @@ fun InterceptScreen(
                             Text("暂无拦截记录，四层防护正在静默守护中", color = Color.Gray, fontSize = 14.sp)
                         }
                     } else {
-                        // 按 app 分组（最多 MAX_GROUPS 组）
-                        val grouped: List<Pair<String, List<InterceptLogEntity>>> = remember(logs) {
-                            logs.groupBy { log ->
-                                log.appLabel.ifBlank { log.packageName.ifBlank { "系统底层" } }
-                            }
-                                .entries
-                                .sortedByDescending { it.value.first().timestamp }
-                                .take(MAX_GROUPS)
-                                .map { (k, v) -> k to v }
-                        }
-
                         LazyColumn(
                             modifier = Modifier.fillMaxSize(),
                             contentPadding = PaddingValues(16.dp),
                             verticalArrangement = Arrangement.spacedBy(10.dp)
                         ) {
                             items(grouped, key = { it.first }) { (appLabel, appLogs) ->
-                                val firstLog = appLogs.firstOrNull()
+                                val groupKey = (appLogs.firstOrNull()?.packageName ?: "") to appLabel
                                 AppLogGroup(
                                     appLabel = appLabel,
                                     logs = appLogs,
                                     dateFormat = dateFormat,
-                                    onDeleteGroup = {
-                                        onDeleteAppLogs(firstLog?.packageName ?: "", appLabel)
-                                    }
+                                    inSelectionMode = selectionMode,
+                                    isSelected = groupKey in selectedGroups,
+                                    onToggleSelect = { toggleGroupSelection(groupKey) }
                                 )
                             }
                         }
@@ -155,13 +227,15 @@ fun InterceptScreen(
     }
 }
 
-/** 按 App 折叠的拦截日志卡片 */
+/** 按 App 折叠的拦截日志卡片（支持长按进入多选删除模式） */
 @Composable
 private fun AppLogGroup(
     appLabel: String,
     logs: List<InterceptLogEntity>,
     dateFormat: SimpleDateFormat,
-    onDeleteGroup: () -> Unit
+    inSelectionMode: Boolean,
+    isSelected: Boolean,
+    onToggleSelect: () -> Unit
 ) {
     var expanded by rememberSaveable(appLabel) { mutableStateOf(false) }
     val arrowRotation by animateFloatAsState(targetValue = if (expanded) 180f else 0f, label = "arrow")
@@ -172,14 +246,44 @@ private fun AppLogGroup(
 
     HyperCard {
         Column(modifier = Modifier.fillMaxWidth()) {
-            // 分组头部：App 名 + 拦截总数，点击展开/收起
+            // 分组头部：选中模式下点击=切换选中、长按=进入多选并选中；否则点击=展开/收起
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clickable { expanded = !expanded }
+                    .combinedClickable(
+                        onClick = {
+                            if (inSelectionMode) onToggleSelect() else expanded = !expanded
+                        },
+                        onLongClick = onToggleSelect
+                    )
                     .padding(vertical = 2.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
+                if (inSelectionMode) {
+                    // 选中指示器：未选中=描边圆圈，选中=实心圆 + 白色对勾
+                    Box(
+                        modifier = Modifier
+                            .size(22.dp)
+                            .clip(CircleShape)
+                            .background(if (isSelected) Color(0xFF0A59F7) else Color.Transparent)
+                            .border(
+                                width = 2.dp,
+                                color = if (isSelected) Color.Transparent else Color(0xFFB0B7C3),
+                                shape = CircleShape
+                            ),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        if (isSelected) {
+                            Icon(
+                                imageVector = Icons.Default.Check,
+                                contentDescription = "已选中",
+                                tint = Color.White,
+                                modifier = Modifier.size(16.dp)
+                            )
+                        }
+                    }
+                    Spacer(modifier = Modifier.width(10.dp))
+                }
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = appLabel,
@@ -210,24 +314,18 @@ private fun AppLogGroup(
                         fontWeight = FontWeight.Bold
                     )
                 }
-                Spacer(modifier = Modifier.width(4.dp))
-                // 单组删除按钮
-                IconButton(onClick = onDeleteGroup) {
+                // 展开箭头（选中模式下隐藏，展开行为随之禁用）
+                if (!inSelectionMode) {
+                    Spacer(modifier = Modifier.width(4.dp))
                     Icon(
-                        imageVector = Icons.Default.DeleteOutline,
-                        contentDescription = "删除本组件记录",
-                        tint = Color.LightGray,
-                        modifier = Modifier.size(18.dp)
+                        imageVector = Icons.Default.ExpandMore,
+                        contentDescription = if (expanded) "收起" else "展开",
+                        tint = Color.Gray,
+                        modifier = Modifier
+                            .rotate(arrowRotation)
+                            .size(20.dp)
                     )
                 }
-                Icon(
-                    imageVector = Icons.Default.ExpandMore,
-                    contentDescription = if (expanded) "收起" else "展开",
-                    tint = Color.Gray,
-                    modifier = Modifier
-                        .rotate(arrowRotation)
-                        .size(20.dp)
-                )
             }
 
             // 展开后的记录列表

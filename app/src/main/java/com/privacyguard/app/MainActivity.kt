@@ -203,16 +203,9 @@ class MainActivity : ComponentActivity() {
                                 InterceptScreen(
                                     logs = interceptLogs,
                                     topApps = topApps,
-                                    onClearLogs = {
-                                        coroutineScope.launch {
-                                            app.interceptLogRepository.clearLogs()
-                                            Toast.makeText(this@MainActivity, "已清空拦截历史", Toast.LENGTH_SHORT).show()
-                                        }
-                                    },
                                     onDeleteAppLogs = { pkg, label ->
                                         coroutineScope.launch {
                                             app.interceptLogRepository.deleteAppLogs(pkg, label)
-                                            Toast.makeText(this@MainActivity, "已删除 $label 的记录", Toast.LENGTH_SHORT).show()
                                         }
                                     }
                                 )
