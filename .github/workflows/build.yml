@@ -108,10 +108,18 @@ jobs:
           echo "Artifacts prepared successfully:"
           ls -lh artifacts/
 
-      - name: Upload APK Artifacts
+      - name: Upload Release APK (Slim)
+        if: ${{ hashFiles('artifacts/*release.apk') != '' }}
         uses: actions/upload-artifact@v4
         with:
-          name: PrivacyGuard-APKs
+          name: PrivacyGuard-Release-APK
+          path: artifacts/*release.apk
+          retention-days: 30
+
+      - name: Upload All APKs
+        uses: actions/upload-artifact@v4
+        with:
+          name: PrivacyGuard-All-APKs
           path: artifacts/*.apk
           retention-days: 30
 

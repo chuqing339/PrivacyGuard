@@ -5,8 +5,7 @@
     @androidx.room.* <fields>;
 }
 -keep class androidx.room.** { *; }
--keep class com.privacyguard.app.data.local.** { *; }
--keep class com.privacyguard.app.data.model.** { *; }
+-keep class com.privacyguard.app.data.** { *; }
 
 # libsu
 -keep class com.topjohnwu.superuser.** { *; }
@@ -14,3 +13,9 @@
 
 # Miuix
 -keep class top.yukonga.miuix.** { *; }
+-dontwarn top.yukonga.miuix.**
+
+# AndroidX & Compose
+-dontwarn androidx.compose.**
+-dontwarn kotlinx.coroutines.**
+-keep class androidx.datastore.** { *; }
